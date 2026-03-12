@@ -144,58 +144,64 @@ export default function DiscoveryEngine() {
   function generateFallbackContexts(product) {
     const fallbacks = {
       clenser: [
-        { rank: 1, WHO: "자취 1년차 사회초년생", WHEN: "아침 출근 30분 전", WHERE: "원룸 세면대", PAIN: "세안해도 남아있는 잔여 메이크업", NEED: "빠르고 확실한 클렌징", INTEREST: "갓생/루틴", conversion_score: 96, insight: "시간 부족 + 피부 고민이 겹치는 순간, 원터치 솔루션이 즉각 구매를 유발" },
-        { rank: 2, WHO: "부모님 선물 고민 자녀", WHEN: "어버이날 시즌", WHERE: "온라인 쇼핑 중", PAIN: "실용적이면서 센스있는 선물을 모름", NEED: "선물 센스 인정받기", INTEREST: "효도/가족", conversion_score: 93, insight: "3만원대 가격 + 카카오프렌즈 에디션이 선물로 완벽한 밸런스" },
-        { rank: 3, WHO: "뷰티 관심 대학생", WHEN: "환절기 피부 변화기", WHERE: "기숙사 공용 세면대", PAIN: "피부 트러블이 반복되는데 원인 모름", NEED: "확실한 피부 관리 루틴", INTEREST: "뷰티/스킨케어", conversion_score: 90, insight: "세안 방법 자체가 원인일 수 있다는 깨달음이 구매 동기" },
-        { rank: 4, WHO: "갓생러 루틴 관심자", WHEN: "새해 첫 주", WHERE: "SNS 피드 스크롤 중", PAIN: "루틴을 시작하고 싶은데 뭘 사야 할지 모름", NEED: "시작하기 쉬운 루틴 아이템", INTEREST: "갓생/루틴", conversion_score: 87, insight: "새해 다짐 시즌 + 진입 장벽 낮은 가격이 충동 구매 트리거" },
-        { rank: 5, WHO: "인플루언서/리뷰어", WHEN: "신제품 출시 시점", WHERE: "콘텐츠 촬영 스튜디오", PAIN: "리뷰할 만한 가성비 뷰티템 부족", NEED: "콘텐츠 소재 + 팔로워 반응", INTEREST: "뷰티/스킨케어", conversion_score: 84, insight: "12종 컬러 + ASMR 요소가 콘텐츠 소재로 매력적" },
+        { rank: 1, axes_used: ["WHO", "PAIN", "NEED"], WHO: "자취 1년차 사회초년생", WHEN: null, WHERE: null, PAIN: "세안해도 남아있는 잔여 메이크업", NEED: "빠르고 확실한 클렌징", INTEREST: null, conversion_score: 96, insight: "WHO의 시간 부족 + PAIN의 잔여물 고민이 NEED의 원터치 솔루션으로 연결되어 즉각 구매를 유발" },
+        { rank: 2, axes_used: ["WHO", "WHEN", "INTEREST"], WHO: "부모님 선물 고민 자녀", WHEN: "어버이날 시즌", WHERE: null, PAIN: null, NEED: null, INTEREST: "효도/가족", conversion_score: 93, insight: "WHO의 선물 고민 + WHEN의 시즌성 + INTEREST의 효도 감성이 3만원대 가격과 맞물려 충동 구매 유발" },
+        { rank: 3, axes_used: ["WHO", "PAIN"], WHO: "뷰티 관심 대학생", WHEN: null, WHERE: null, PAIN: "피부 트러블이 반복되는데 원인 모름", NEED: null, INTEREST: null, conversion_score: 90, insight: "WHO의 뷰티 관심 + PAIN의 트러블 원인 미지 — 세안 방법이 원인이라는 깨달음이 구매 동기" },
+        { rank: 4, axes_used: ["WHEN", "PAIN", "NEED"], WHO: null, WHEN: "새해 첫 주 루틴 시작", WHERE: null, PAIN: "루틴을 시작하고 싶은데 뭘 사야 할지 모름", NEED: "시작하기 쉬운 루틴 아이템", INTEREST: null, conversion_score: 87, insight: "WHEN의 새해 다짐 시즌 + PAIN의 선택 장벽 + NEED의 쉬운 진입이 충동 구매 트리거" },
+        { rank: 5, axes_used: ["WHERE", "INTEREST"], WHO: null, WHEN: null, WHERE: "SNS 피드 스크롤 중", PAIN: null, NEED: null, INTEREST: "ASMR", conversion_score: 84, insight: "WHERE의 SNS 발견 + INTEREST의 ASMR 콘텐츠 — 12종 컬러 바꿈 영상이 시선 정지 유발" },
       ],
       lint: [
-        { rank: 1, WHO: "니트 즐겨 입는 직장인", WHEN: "겨울 니트 시즌 시작", WHERE: "드레스룸 거울 앞", PAIN: "좋아하는 니트에 보풀이 생겨 낡아 보임", NEED: "옷을 새것처럼 유지", INTEREST: "데일리룩/패션", conversion_score: 97, insight: "눈으로 즉시 확인 가능한 Before-After가 가장 강력한 구매 트리거" },
-        { rank: 2, WHO: "자취 1년차", WHEN: "주말 대청소", WHERE: "원룸 소파/침구", PAIN: "소파에 보풀이 쌓여 지저분해 보임", NEED: "깔끔한 생활공간 유지", INTEREST: "자취생 꿀팁", conversion_score: 94, insight: "ASMR + 청소 만족감이 숏폼 시청 유지율을 극대화" },
-        { rank: 3, WHO: "30대 워킹맘", WHEN: "아이 등원 준비 아침", WHERE: "아이 옷장 앞", PAIN: "아이 옷에 보풀이 계속 생김", NEED: "빠른 아침 준비", INTEREST: "육아/정리정돈", conversion_score: 91, insight: "아이 옷 관리라는 공감 맥락이 뷰티/패션 외 타겟까지 확장" },
+        { rank: 1, axes_used: ["WHO", "PAIN"], WHO: "니트 즐겨 입는 직장인", WHEN: null, WHERE: null, PAIN: "좋아하는 니트에 보풀이 생겨 낡아 보임", NEED: null, INTEREST: null, conversion_score: 97, insight: "WHO의 니트 애정 + PAIN의 보풀 불만 — Before-After가 가장 강력한 구매 트리거" },
+        { rank: 2, axes_used: ["WHERE", "PAIN", "INTEREST"], WHO: null, WHEN: null, WHERE: "원룸 소파/침구", PAIN: "소파에 보풀이 쌓여 지저분해 보임", NEED: null, INTEREST: "자취생 꿀팁", conversion_score: 94, insight: "WHERE의 자취 공간 + PAIN의 보풀 불편 + INTEREST의 꿀팁 콘텐츠가 ASMR 청소 영상으로 연결" },
+        { rank: 3, axes_used: ["WHO", "WHEN", "NEED"], WHO: "30대 워킹맘", WHEN: "아이 등원 준비 아침", WHERE: null, PAIN: null, NEED: "빠른 아침 준비", INTEREST: null, conversion_score: 91, insight: "WHO의 워킹맘 + WHEN의 바쁜 아침 + NEED의 빠른 처리가 공감 맥락 형성" },
       ],
       carholder: [
-        { rank: 1, WHO: "차량 통근자", WHEN: "출퇴근 시간", WHERE: "차 안 운전석", PAIN: "기존 거치대가 주행중 흔들려서 불안", NEED: "안전하고 편한 내비 사용", INTEREST: "자동차/드라이빙", conversion_score: 96, insight: "과속방지턱 테스트 영상이 기능 증명의 결정적 장면" },
-        { rank: 2, WHO: "신차 구매자", WHEN: "차량 인테리어 세팅 시점", WHERE: "차 안", PAIN: "차 인테리어에 맞는 깔끔한 거치대가 없음", NEED: "프리미엄 차량 액세서리", INTEREST: "자동차/드라이빙", conversion_score: 92, insight: "신차 세팅 콘텐츠 관심사에서 자연스럽게 발견" },
+        { rank: 1, axes_used: ["WHO", "PAIN", "NEED"], WHO: "차량 통근자", WHEN: null, WHERE: null, PAIN: "기존 거치대가 주행중 흔들려서 불안", NEED: "안전하고 편한 내비 사용", INTEREST: null, conversion_score: 96, insight: "WHO의 매일 운전 + PAIN의 흔들림 불안 + NEED의 안전 사용이 과속방지턱 테스트 영상으로 증명" },
+        { rank: 2, axes_used: ["WHO", "WHEN"], WHO: "신차 구매자", WHEN: "차량 인테리어 세팅 시점", WHERE: null, PAIN: null, NEED: null, INTEREST: null, conversion_score: 92, insight: "WHO의 신차 구매 + WHEN의 세팅 시점 — 신차 꾸미기 콘텐츠에서 자연스럽게 발견" },
       ],
     }
     return fallbacks[product.id] || fallbacks.clenser
   }
 
   function generateFallbackIdeas(product, ctx) {
+    const axes = ctx.axes_used || ['WHO', 'WHEN', 'WHERE', 'PAIN', 'NEED', 'INTEREST']
+    const hookText = ctx.PAIN || ctx.WHO || product.strengths[0]?.tag || product.name
+    const placeText = ctx.WHERE || '일상 속'
+    const interestText = ctx.INTEREST || product.category
+    const targetText = ctx.WHO || '일상 소비자'
+
     return {
       youtube: {
-        title: `${ctx.PAIN.slice(0, 8)}... 이거면 끝`,
-        hook: `"솔직히 말할게, ${ctx.PAIN}"`,
+        title: `${hookText.slice(0, 8)}... 이거면 끝`,
+        hook: `"솔직히 말할게, ${hookText}"`,
         hook_pattern: "고백형 → 공감 유발 → 솔루션 제시",
         scene_flow: [
-          `장면1: ${ctx.WHERE}에서 ${ctx.PAIN} 상황 재현 (클로즈업)`,
+          `장면1: ${placeText}에서 ${hookText} 상황 재현 (클로즈업)`,
           `장면2: ${product.name} 등장 — 패키지 오픈 또는 사용 시작`,
           `장면3: ${product.strengths[0]?.tag} 시연 — ${product.strengths[0]?.visual}`,
           `장면4: Before vs After 비교 + 가격 자막`,
         ],
         proof_point: product.strengths[0]?.tag + " 실제 시연",
         cta: `프로필 링크에서 ${product.price}에 만나보세요`,
-        hashtags: [product.name.replace(/\s/g, ''), ctx.INTEREST.split('/')[0], "멜리언스", "추천템", "꿀팁"],
+        hashtags: [product.name.replace(/\s/g, ''), interestText.split('/')[0], "멜리언스", "추천템", "꿀팁"],
         best_upload_time: "평일 오전 7시 (출근 전 스크롤 타임)",
-        target_cluster: ctx.INTEREST,
+        target_cluster: interestText,
       },
       instagram: {
-        title: `${ctx.WHO}의 필수템 발견`,
-        hook: `${ctx.WHERE}에서 이거 쓰는 사람 손?`,
+        title: `${targetText}의 필수템 발견`,
+        hook: `${placeText}에서 이거 쓰는 사람 손?`,
         hook_pattern: "질문형 → 참여 유발 → 시각적 시연",
         scene_flow: [
-          `장면1: ${ctx.WHERE} 분위기 있는 숏 — 일상 연출`,
+          `장면1: ${placeText} 분위기 있는 숏 — 일상 연출`,
           `장면2: 자연스럽게 ${product.name} 등장 (라이프스타일 무드)`,
           `장면3: ${product.strengths[0]?.visual} — 감성적 촬영`,
           `장면4: 사용 후 만족 표정 + 제품 풀샷`,
         ],
         proof_point: "실사용 장면 + 감성적 비주얼",
         cta: "저장해두고 다음에 장바구니 담기",
-        hashtags: [product.name.replace(/\s/g, ''), ctx.INTEREST.split('/')[0], "멜리언스", "일상템", "추천"],
+        hashtags: [product.name.replace(/\s/g, ''), interestText.split('/')[0], "멜리언스", "일상템", "추천"],
         best_upload_time: "평일 저녁 9시 (퇴근 후 릴스 타임)",
-        target_cluster: ctx.INTEREST,
+        target_cluster: interestText,
       },
     }
   }
@@ -213,7 +219,7 @@ export default function DiscoveryEngine() {
     return (
       <div>
         <SectionTitle icon="◈" title="제품 DNA 매트릭스" subtitle="멜리언스 전 제품의 영상화 가능 강점 카드 — 클릭하면 맥락 매칭으로 이동" />
-        <div className="stagger-children" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 16 }}>
+        <div className="stagger-children" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
           {PRODUCTS.map((p) => {
             const isSelected = selectedProduct?.id === p.id
             return (
@@ -222,37 +228,31 @@ export default function DiscoveryEngine() {
                 onClick={() => selectProduct(p)}
                 style={{
                   background: isSelected ? C.surfaceHover : C.card,
-                  border: `1px solid ${isSelected ? C.accent : C.border}`,
-                  borderRadius: 16, padding: 20, cursor: 'pointer',
-                  transition: 'all 0.25s ease',
+                  border: `1.5px solid ${isSelected ? C.accent : C.border}`,
+                  borderRadius: 14, padding: 16, cursor: 'pointer',
+                  transition: 'all 0.25s ease', position: 'relative',
                 }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.transform = 'translateY(-2px)' }}
                 onMouseLeave={e => { if (!isSelected) e.currentTarget.style.borderColor = C.border; e.currentTarget.style.transform = 'translateY(0)' }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                  <div>
-                    <div style={{ fontSize: 28, marginBottom: 6 }}>{p.emoji}</div>
-                    <h3 style={{ fontSize: 16, fontWeight: 700, color: C.text, margin: '0 0 4px 0' }}>{p.name}</h3>
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {isSelected && (
+                  <div style={{ position: 'absolute', top: 10, right: 10, width: 20, height: 20, borderRadius: '50%', background: C.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: C.bg, fontWeight: 700 }}>✓</div>
+                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                  <span style={{ fontSize: 28 }}>{p.emoji}</span>
+                  <div style={{ flex: 1 }}>
+                    <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, margin: '0 0 3px 0' }}>{p.name}</h3>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <Tag small color={C.purple}>{p.category}</Tag>
                       {p.bestseller && <Tag small color={C.orange}>BEST</Tag>}
                     </div>
                   </div>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: C.accent }}>{p.price}</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: C.accent }}>{p.price}</span>
                 </div>
-                <p style={{ fontSize: 12, color: C.textDim, marginBottom: 12, lineHeight: 1.5 }}>{p.description}</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                  {p.strengths.slice(0, 4).map((s, j) => (
-                    <div key={j}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
-                        <span style={{ fontSize: 11, color: C.textMuted }}>{s.tag}</span>
-                      </div>
-                      <ImpactBar value={s.impact} />
-                    </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                  {p.strengths.slice(0, 3).map((s, j) => (
+                    <Tag key={j} small>{s.tag}</Tag>
                   ))}
-                  {p.strengths.length > 4 && (
-                    <span style={{ fontSize: 11, color: C.textDim, textAlign: 'right' }}>+{p.strengths.length - 4}개 강점 →</span>
-                  )}
                 </div>
               </div>
             )
@@ -295,23 +295,25 @@ export default function DiscoveryEngine() {
           </button>
         </div>
 
-        {/* 6-Axis Overview */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 24 }}>
-          {Object.entries(CONTEXT_DIMS).map(([key, dim]) => (
-            <div key={key} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: dim.color }} />
-                <span style={{ fontSize: 11, fontWeight: 700, color: dim.color, letterSpacing: '0.06em' }}>{key}</span>
-                <span style={{ fontSize: 10, color: C.textDim, marginLeft: 'auto' }}>{dim.label}</span>
+        {/* 6-Axis Overview (제품별 맞춤) */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginBottom: 24 }}>
+          {Object.entries(CONTEXT_DIMS).map(([key, dim]) => {
+            const productValues = selectedProduct.contexts?.[key] || dim.values.slice(0, 5)
+            return (
+              <div key={key} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: dim.color }} />
+                  <span style={{ fontSize: 11, fontWeight: 700, color: dim.color, letterSpacing: '0.06em' }}>{key}</span>
+                </div>
+                <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 8, lineHeight: 1.4 }}>{dim.question}</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                  {productValues.map((v, i) => (
+                    <span key={i} style={{ fontSize: 10, padding: '3px 8px', background: `${dim.color}18`, color: dim.color, borderRadius: 10 }}>{v}</span>
+                  ))}
+                </div>
               </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                {dim.values.slice(0, 5).map((v, i) => (
-                  <span key={i} style={{ fontSize: 10, padding: '2px 7px', background: `${dim.color}18`, color: dim.color, borderRadius: 10, opacity: 0.85 }}>{v}</span>
-                ))}
-                {dim.values.length > 5 && <span style={{ fontSize: 10, color: C.textDim }}>+{dim.values.length - 5}</span>}
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
 
         {/* Matched Results */}
@@ -352,8 +354,20 @@ export default function DiscoveryEngine() {
                       <span style={{ fontSize: 10, color: C.textMuted, marginLeft: 2 }}>점</span>
                     </div>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-                    {['WHO', 'WHEN', 'WHERE', 'PAIN', 'NEED', 'INTEREST'].map(dim => (
+                  {/* 사용된 축 뱃지 */}
+                  {ctx.axes_used && (
+                    <div style={{ display: 'flex', gap: 5, marginBottom: 10, alignItems: 'center' }}>
+                      <span style={{ fontSize: 10, color: C.textDim, marginRight: 2 }}>축 조합:</span>
+                      {ctx.axes_used.map((axis, ai) => (
+                        <span key={axis}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: dimColor(axis), background: `${dimColor(axis)}18`, padding: '2px 8px', borderRadius: 10 }}>{axis}</span>
+                          {ai < ctx.axes_used.length - 1 && <span style={{ fontSize: 10, color: C.textDim, margin: '0 2px' }}>+</span>}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min((ctx.axes_used || ['WHO','WHEN','WHERE','PAIN','NEED','INTEREST']).filter(a => ctx[a]).length, 3)}, 1fr)`, gap: 8 }}>
+                    {(ctx.axes_used || ['WHO', 'WHEN', 'WHERE', 'PAIN', 'NEED', 'INTEREST']).filter(dim => ctx[dim]).map(dim => (
                       <div key={dim} style={{ background: `${dimColor(dim)}12`, padding: '6px 10px', borderRadius: 8, border: `1px solid ${dimColor(dim)}20` }}>
                         <span style={{ fontSize: 9, fontWeight: 700, color: dimColor(dim), display: 'block', marginBottom: 2, letterSpacing: '0.06em' }}>{dim}</span>
                         <span style={{ fontSize: 12, color: C.text, lineHeight: 1.4 }}>{ctx[dim]}</span>
@@ -398,8 +412,8 @@ export default function DiscoveryEngine() {
         {/* Context Summary */}
         <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 20, display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
           <span style={{ fontSize: 12, color: C.textMuted, marginRight: 4 }}>적용 맥락:</span>
-          {['WHO', 'WHEN', 'WHERE', 'PAIN', 'NEED', 'INTEREST'].map(dim => (
-            <Tag key={dim} small color={dimColor(dim)}>{ctx[dim]}</Tag>
+          {(ctx.axes_used || ['WHO', 'WHEN', 'WHERE', 'PAIN', 'NEED', 'INTEREST']).filter(dim => ctx[dim]).map(dim => (
+            <Tag key={dim} small color={dimColor(dim)}>{dim}: {ctx[dim]}</Tag>
           ))}
         </div>
 

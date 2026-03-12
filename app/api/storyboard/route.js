@@ -12,7 +12,7 @@ import { NextResponse } from 'next/server'
 export async function POST(request) {
   try {
     const body = await request.json()
-    const { product, context, ideas, videoStyle, platform, targetDuration, includeHuman, toneAndManner } = body
+    const { product, context, ideas, videoStyle, platform, targetDuration, includeHuman, toneAndManner, sources } = body
 
     const apiKey = process.env.ANTHROPIC_API_KEY
     if (!apiKey) {
@@ -48,6 +48,13 @@ export async function POST(request) {
 - CTA: ${ideas[platformKey].cta}`
       : ''
 
+    // 업로드된 소스 정보 블록
+    const hasSources = sources?.length > 0
+    const sourceBlock = hasSources
+      ? `\n업로드된 제품 소스 (motion_image 씬에서 활용 가능):
+${sources.map(s => `- ${s.key}: [${s.type}] ${s.description}`).join('\n')}`
+      : '\n제품 소스 없음 — 모든 씬을 AI 생성(ai_video/generated_image)으로 구성하세요.'
+
     const strengthsText = product.strengths?.map(s => `${s.tag} (시각: ${s.visual})`).join(', ') || ''
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -73,9 +80,14 @@ export async function POST(request) {
 - 발견 커머스 맥락(WHO, WHERE, WHEN, PAIN)을 영상에 자연스럽게 반영
 
 씬 타입:
-- ai_video: model(kling_2.5_turbo_pro/wan_2.2), prompt(영어), reference_image, camera_movement
-- motion_image: source(이미지 키), motion(slow_zoom_in/slow_zoom_out/pan_left/pan_right/float_up/scale_up_center/ken_burns/shake_subtle)
+- ai_video: model(kling_2.5_turbo_pro/wan_2.2), prompt(영어), reference_image(업로드 소스 key 가능), camera_movement
+- motion_image: source(업로드된 소스 key, 예: source_1), motion(slow_zoom_in/slow_zoom_out/pan_left/pan_right/float_up/scale_up_center/ken_burns/shake_subtle)
 - generated_image: generation_prompt(영어)
+
+소스 활용 원칙:
+- 업로드된 제품 소스가 있으면 motion_image 씬에서 적극 활용하고, ai_video의 reference_image로도 참조
+- 소스가 없으면 ai_video와 generated_image만 사용 (motion_image 사용 금지)
+- 각 소스의 설명을 분석하여 가장 적합한 씬에 배치 (예: "제품 정면" → 제품 소개 씬, "사용 장면" → Solution 씬)
 
 text_style: bold_center_white/info_bottom_bar/highlight_keyword/cta_animated/rating_display/split_comparison
 transition: cut/fade/wipe_left/wipe_right/zoom_in/dissolve
@@ -145,10 +157,7 @@ ${ideaBlock}
 길이: ${targetDuration || 22}초
 사람: ${includeHuman ? '포함(손/턱아래만)' : '제품만'}
 톤: ${toneAndManner || '솔직하고 드라마틱'}
-
-이미지:
-- image_1: 제품 정면 이미지
-- image_2: 제품 사용/디테일 이미지
+${sourceBlock}
 
 첫 2초 훅을 매우 강력하게 만들어주세요. 맥락 데이터를 적극 활용하여 타겟이 공감할 수 있는 스토리를 구성하세요.`,
           },

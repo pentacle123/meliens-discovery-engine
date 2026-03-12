@@ -13,7 +13,7 @@ export const maxDuration = 300 // 5분 타임아웃
 export async function POST(request) {
   try {
     const body = await request.json()
-    const { storyboard, images } = body
+    const { storyboard, images, sources } = body
 
     if (!storyboard || !storyboard.scenes?.length) {
       return NextResponse.json(
@@ -33,11 +33,21 @@ export async function POST(request) {
       )
     }
 
-    // 이미지 기본값 (없으면 플레이스홀더)
-    const finalImages = images?.length ? images : [
-      { key: 'image_1', description: '제품 정면 이미지', url: '' },
-      { key: 'image_2', description: '제품 디테일 이미지', url: '' },
-    ]
+    // 업로드된 소스 이미지 + 레거시 images 병합
+    // 유효한 URL이 있는 항목만 포함 (빈 문자열 제외)
+    const allImages = []
+    if (sources?.length) {
+      sources.forEach(s => {
+        if (s.dataUrl) allImages.push({ key: s.key, description: s.description, url: s.dataUrl })
+      })
+    }
+    if (images?.length) {
+      images.forEach(img => {
+        if (img.url) allImages.push(img)
+      })
+    }
+    // 유효한 이미지가 없으면 빈 배열 전달 (pipeline이 text-to-video 폴백 처리)
+    const finalImages = allImages
 
     const result = await runPipeline(storyboard, finalImages)
 
