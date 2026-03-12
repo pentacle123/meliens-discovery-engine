@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { PRODUCTS, CONTEXT_DIMS, SEASON_DATA, SF_TEMPLATES } from '@/lib/data'
 
 // ─── STYLE CONSTANTS ───
@@ -78,6 +79,7 @@ export default function DiscoveryEngine() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth())
   const [selectedContextIdx, setSelectedContextIdx] = useState(0)
+  const router = useRouter()
 
   const tabs = [
     { label: '제품 DNA', icon: '◈' },
@@ -505,12 +507,32 @@ export default function DiscoveryEngine() {
             </div>
 
             {/* Actions */}
-            <div style={{ textAlign: 'center', marginTop: 24, display: 'flex', gap: 12, justifyContent: 'center' }}>
+            <div style={{ textAlign: 'center', marginTop: 24, display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
               <button onClick={() => setGeneratedIdeas(null)} style={{ padding: '10px 28px', background: C.card, color: C.textMuted, border: `1px solid ${C.border}`, borderRadius: 10, cursor: 'pointer', fontSize: 13 }}>
                 ↻ 같은 맥락으로 재생성
               </button>
               <button onClick={() => { setActiveTab(1); setGeneratedIdeas(null) }} style={{ padding: '10px 28px', background: C.card, color: C.textMuted, border: `1px solid ${C.border}`, borderRadius: 10, cursor: 'pointer', fontSize: 13 }}>
                 ⬡ 다른 맥락 선택하러
+              </button>
+              <button
+                onClick={() => {
+                  const studioData = {
+                    product: selectedProduct,
+                    context: matchedContexts[selectedContextIdx],
+                    ideas: generatedIdeas,
+                  }
+                  localStorage.setItem('meliens_studio_data', JSON.stringify(studioData))
+                  router.push('/studio')
+                }}
+                style={{
+                  padding: '10px 28px',
+                  background: `linear-gradient(135deg, ${C.purple}, ${C.pink})`,
+                  color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer',
+                  fontSize: 13, fontWeight: 700,
+                  boxShadow: `0 2px 12px ${C.purple}44`,
+                }}
+              >
+                🎬 AI Studio로 보내기
               </button>
             </div>
           </>
