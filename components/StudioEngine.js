@@ -55,6 +55,8 @@ export default function StudioEngine() {
   const [stage, setStage] = useState('')
   const [progress, setProgress] = useState(0)
   const [activeScene, setActiveScene] = useState(0)
+  const [videoUrl, setVideoUrl] = useState(null)
+  const [generating, setGenerating] = useState(false)
 
   // ─── Discovery Engine 데이터 수신 ───
   useEffect(() => {
@@ -114,6 +116,58 @@ export default function StudioEngine() {
       setLoading(false)
     }
   }, [product, context, ideas, videoStyle, platform, targetDuration, includeHuman, toneAndManner])
+
+  // ─── 영상 생성 ───
+  const handleGenerateVideo = useCallback(async () => {
+    if (!storyboard) return
+    setGenerating(true)
+    setError(null)
+    setStage('AI 영상 클립 생성 중... (2~4분 소요)')
+    setProgress(10)
+
+    // 진행 표시 시뮬레이션
+    const stages = [
+      { p: 30, msg: 'fal.ai에서 AI 영상 클립 생성 중...' },
+      { p: 60, msg: '에셋 생성 완료, 나레이션 생성 중...' },
+      { p: 80, msg: 'Creatomate에서 최종 영상 합성 중...' },
+    ]
+    let stageIdx = 0
+    const interval = setInterval(() => {
+      if (stageIdx < stages.length) {
+        setProgress(stages[stageIdx].p)
+        setStage(stages[stageIdx].msg)
+        stageIdx++
+      }
+    }, 30000)
+
+    try {
+      const res = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          storyboard,
+          images: [
+            { key: 'image_1', description: '제품 정면 이미지', url: '' },
+            { key: 'image_2', description: '제품 디테일 이미지', url: '' },
+          ],
+        }),
+      })
+
+      clearInterval(interval)
+      const data = await res.json()
+      if (!data.success) throw new Error(data.error || '영상 생성 실패')
+
+      setVideoUrl(data.videoUrl)
+      setTab('output')
+      setProgress(100)
+      setStage(`완료! 총 비용: $${data.totalCost?.toFixed(2)}`)
+    } catch (err) {
+      clearInterval(interval)
+      setError(err.message || '영상 생성 실패')
+    } finally {
+      setGenerating(false)
+    }
+  }, [storyboard])
 
   // ─── SUB COMPONENTS ───
   function ContextTag({ dim, value }) {
@@ -408,12 +462,18 @@ export default function StudioEngine() {
             }}>
               ↻ 재생성
             </button>
-            <button disabled style={{
-              padding: '10px 20px', borderRadius: 8, border: 'none',
-              background: C.border, color: C.textDim, fontSize: 12, fontWeight: 600,
-              cursor: 'not-allowed', opacity: 0.5,
-            }}>
-              🎬 영상 생성 (준비 중)
+            <button
+              onClick={handleGenerateVideo}
+              disabled={generating}
+              style={{
+                padding: '10px 20px', borderRadius: 8, border: 'none',
+                background: generating ? C.border : C.green,
+                color: generating ? C.textDim : C.bg,
+                fontSize: 12, fontWeight: 700,
+                cursor: generating ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {generating ? '◌ 생성 중...' : '🎬 영상 생성 (~$0.80)'}
             </button>
           </div>
         </div>
@@ -539,6 +599,7 @@ export default function StudioEngine() {
           {[
             { id: 'input', label: '제품 & 설정', icon: '◈' },
             { id: 'storyboard', label: '스토리보드', icon: '🎬' },
+            { id: 'output', label: '최종 출력', icon: '✅' },
           ].map(t => (
             <button key={t.id} onClick={() => setTab(t.id)} style={{
               padding: '13px 24px', background: 'transparent',
@@ -586,6 +647,42 @@ export default function StudioEngine() {
       <main style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 24px' }}>
         {tab === 'input' && renderInput()}
         {tab === 'storyboard' && renderStoryboard()}
+        {tab === 'output' && (
+          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 40, textAlign: 'center' }}>
+            {videoUrl ? (
+              <>
+                <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
+                <h2 style={{ fontSize: 20, fontWeight: 800, color: C.text, marginBottom: 8 }}>영상 생성 완료!</h2>
+                <p style={{ fontSize: 13, color: C.textMuted, marginBottom: 24 }}>
+                  {storyboard?.metadata?.title || product?.name}
+                </p>
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginBottom: 24 }}>
+                  <div style={{ padding: '7px 14px', background: C.surface, borderRadius: 8, fontSize: 12 }}>
+                    <span style={{ color: C.textDim }}>길이 </span>
+                    <span style={{ color: C.text, fontWeight: 700 }}>{storyboard?.duration_target || targetDuration}초</span>
+                  </div>
+                </div>
+                <a
+                  href={videoUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'inline-block', padding: '12px 28px', borderRadius: 10, border: 'none',
+                    background: `linear-gradient(135deg, ${C.purple}, ${C.accent})`, color: '#fff',
+                    fontSize: 14, fontWeight: 700, textDecoration: 'none',
+                  }}
+                >
+                  📥 영상 다운로드
+                </a>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: 48, opacity: 0.3, marginBottom: 12 }}>🎬</div>
+                <p style={{ fontSize: 14, color: C.textMuted }}>스토리보드 탭에서 "영상 생성" 버튼을 눌러주세요</p>
+              </>
+            )}
+          </div>
+        )}
       </main>
 
       {/* Footer */}
