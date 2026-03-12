@@ -57,9 +57,9 @@ export default function StudioEngine() {
   const [activeScene, setActiveScene] = useState(0)
   const [videoUrl, setVideoUrl] = useState(null)
   const [generating, setGenerating] = useState(false)
-  const [sourceFiles, setSourceFiles] = useState([])
-  const [dragOver, setDragOver] = useState(false)
-  const fileInputRef = useRef(null)
+  const [sceneFiles, setSceneFiles] = useState({}) // { scene_no: { file, previewUrl, ... } }
+  const [dragOverScene, setDragOverScene] = useState(null)
+  const sceneFileInputRefs = useRef({})
 
   // ─── Discovery Engine 데이터 수신 ───
   useEffect(() => {
@@ -79,45 +79,36 @@ export default function StudioEngine() {
     }
   }, [])
 
-  // ─── 소스 파일 처리 ───
-  const handleSourceFiles = useCallback((files) => {
-    const MAX_FILES = 10
-    const MAX_IMAGE_SIZE = 10 * 1024 * 1024
-    const MAX_VIDEO_SIZE = 100 * 1024 * 1024
+  // ─── 씬별 소스 파일 처리 ───
+  const handleSceneFile = useCallback((sceneNo, files) => {
+    const file = files[0]
+    if (!file) return
+    const isImage = file.type.startsWith('image/')
+    if (!isImage || file.size > 10 * 1024 * 1024) return
 
-    const newFiles = Array.from(files).reduce((acc, file) => {
-      if (sourceFiles.length + acc.length >= MAX_FILES) return acc
-      const isVideo = file.type.startsWith('video/')
-      const isImage = file.type.startsWith('image/')
-      if (!isVideo && !isImage) return acc
-      const maxSize = isVideo ? MAX_VIDEO_SIZE : MAX_IMAGE_SIZE
-      if (file.size > maxSize) return acc
-
-      acc.push({
-        id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-        file,
-        name: file.name,
-        type: isVideo ? 'video' : 'image',
-        size: file.size,
-        previewUrl: URL.createObjectURL(file),
-        description: '',
-      })
-      return acc
-    }, [])
-
-    if (newFiles.length > 0) setSourceFiles(prev => [...prev, ...newFiles])
-  }, [sourceFiles.length])
-
-  const removeSourceFile = useCallback((id) => {
-    setSourceFiles(prev => {
-      const file = prev.find(f => f.id === id)
-      if (file) URL.revokeObjectURL(file.previewUrl)
-      return prev.filter(f => f.id !== id)
+    setSceneFiles(prev => {
+      const old = prev[sceneNo]
+      if (old?.previewUrl) URL.revokeObjectURL(old.previewUrl)
+      return {
+        ...prev,
+        [sceneNo]: {
+          file,
+          name: file.name,
+          size: file.size,
+          previewUrl: URL.createObjectURL(file),
+        },
+      }
     })
   }, [])
 
-  const updateSourceDescription = useCallback((id, desc) => {
-    setSourceFiles(prev => prev.map(f => f.id === id ? { ...f, description: desc } : f))
+  const removeSceneFile = useCallback((sceneNo) => {
+    setSceneFiles(prev => {
+      const old = prev[sceneNo]
+      if (old?.previewUrl) URL.revokeObjectURL(old.previewUrl)
+      const next = { ...prev }
+      delete next[sceneNo]
+      return next
+    })
   }, [])
 
   // ─── 스토리보드 생성 ───
@@ -144,12 +135,6 @@ export default function StudioEngine() {
           targetDuration,
           includeHuman,
           toneAndManner,
-          sources: sourceFiles.map((sf, i) => ({
-            key: `source_${i + 1}`,
-            type: sf.type,
-            name: sf.name,
-            description: sf.description || sf.name,
-          })),
         }),
       })
 
@@ -165,7 +150,7 @@ export default function StudioEngine() {
     } finally {
       setLoading(false)
     }
-  }, [product, context, ideas, videoStyle, platform, targetDuration, includeHuman, toneAndManner, sourceFiles])
+  }, [product, context, ideas, videoStyle, platform, targetDuration, includeHuman, toneAndManner])
 
   // ─── 파일 → base64 변환 헬퍼 ───
   const fileToDataUrl = useCallback((file) => {
@@ -201,12 +186,13 @@ export default function StudioEngine() {
     }, 30000)
 
     try {
-      // 업로드된 소스 파일을 base64 Data URL로 변환
+      // 씬별 업로드된 소스 파일을 base64 Data URL로 변환
       const sourcesPayload = await Promise.all(
-        sourceFiles.filter(sf => sf.type === 'image').map(async (sf, i) => ({
-          key: `source_${i + 1}`,
-          type: sf.type,
-          description: sf.description || sf.name,
+        Object.entries(sceneFiles).map(async ([sceneNo, sf]) => ({
+          key: `source_scene_${sceneNo}`,
+          sceneNo: Number(sceneNo),
+          type: 'image',
+          description: sf.name,
           dataUrl: await fileToDataUrl(sf.file),
         }))
       )
@@ -234,7 +220,7 @@ export default function StudioEngine() {
     } finally {
       setGenerating(false)
     }
-  }, [storyboard, sourceFiles, fileToDataUrl])
+  }, [storyboard, sceneFiles, fileToDataUrl])
 
   // ─── SUB COMPONENTS ───
   function ContextTag({ dim, value }) {
@@ -331,105 +317,6 @@ export default function StudioEngine() {
             </div>
           </div>
         )}
-
-        {/* 제품 소스 업로드 */}
-        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: C.text, margin: 0 }}>제품 소스</h3>
-            <span style={{ fontSize: 10, color: C.textDim }}>선택사항 · 최대 10개</span>
-          </div>
-
-          {/* 드래그앤드롭 영역 */}
-          <div
-            onClick={() => fileInputRef.current?.click()}
-            onDragOver={e => { e.preventDefault(); setDragOver(true) }}
-            onDragLeave={() => setDragOver(false)}
-            onDrop={e => { e.preventDefault(); setDragOver(false); handleSourceFiles(e.dataTransfer.files) }}
-            style={{
-              border: `2px dashed ${dragOver ? C.accent : C.border}`,
-              borderRadius: 10, padding: sourceFiles.length > 0 ? '14px' : '28px 14px',
-              textAlign: 'center', cursor: 'pointer',
-              background: dragOver ? `${C.accent}08` : C.surface,
-              transition: 'all 0.2s',
-            }}
-          >
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept="image/*,video/*"
-              style={{ display: 'none' }}
-              onChange={e => { handleSourceFiles(e.target.files); e.target.value = '' }}
-            />
-            <div style={{ fontSize: 22, opacity: 0.4, marginBottom: 6 }}>+</div>
-            <div style={{ fontSize: 12, color: C.textMuted }}>사진/영상을 드래그하거나 클릭하여 업로드</div>
-            <div style={{ fontSize: 10, color: C.textDim, marginTop: 4 }}>이미지 10MB · 영상 100MB 이내</div>
-          </div>
-
-          {/* 업로드된 소스 미리보기 */}
-          {sourceFiles.length > 0 && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10, marginTop: 12 }}>
-              {sourceFiles.map((sf, i) => (
-                <div key={sf.id} style={{ background: C.surface, borderRadius: 8, overflow: 'hidden', border: `1px solid ${C.border}` }}>
-                  {/* 썸네일 */}
-                  <div style={{ position: 'relative', width: '100%', aspectRatio: '1', background: '#000' }}>
-                    {sf.type === 'image' ? (
-                      <img src={sf.previewUrl} alt={sf.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : (
-                      <video src={sf.previewUrl} muted style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    )}
-                    {/* 타입 뱃지 */}
-                    <span style={{
-                      position: 'absolute', top: 4, left: 4, fontSize: 9, padding: '2px 6px', borderRadius: 4,
-                      background: sf.type === 'video' ? `${C.purple}cc` : `${C.accent}cc`, color: '#fff', fontWeight: 700,
-                    }}>
-                      {sf.type === 'video' ? 'VIDEO' : 'IMAGE'}
-                    </span>
-                    {/* 소스 번호 */}
-                    <span style={{
-                      position: 'absolute', top: 4, right: 28, fontSize: 9, padding: '2px 6px', borderRadius: 4,
-                      background: 'rgba(0,0,0,0.7)', color: '#fff', fontWeight: 600,
-                    }}>
-                      source_{i + 1}
-                    </span>
-                    {/* 삭제 버튼 */}
-                    <button
-                      onClick={e => { e.stopPropagation(); removeSourceFile(sf.id) }}
-                      style={{
-                        position: 'absolute', top: 4, right: 4, width: 20, height: 20, borderRadius: '50%',
-                        background: 'rgba(0,0,0,0.7)', border: 'none', color: '#fff', cursor: 'pointer',
-                        fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}
-                    >
-                      ×
-                    </button>
-                  </div>
-                  {/* 파일 정보 + 설명 */}
-                  <div style={{ padding: '6px 8px' }}>
-                    <div style={{ fontSize: 10, color: C.textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {sf.name} ({(sf.size / 1024 / 1024).toFixed(1)}MB)
-                    </div>
-                    <input
-                      value={sf.description}
-                      onChange={e => updateSourceDescription(sf.id, e.target.value)}
-                      placeholder="설명 (예: 제품 정면)"
-                      onClick={e => e.stopPropagation()}
-                      style={{
-                        width: '100%', marginTop: 4, padding: '4px 6px', borderRadius: 4,
-                        background: C.bg, border: `1px solid ${C.border}`, color: C.text,
-                        fontSize: 10, outline: 'none', fontFamily: 'inherit',
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div style={{ fontSize: 10, color: C.textDim, marginTop: 10, lineHeight: 1.5 }}>
-            소스를 올리지 않으면 AI가 모든 영상을 자동 생성합니다
-          </div>
-        </div>
 
         {/* 영상 설정 */}
         <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 20 }}>
@@ -559,35 +446,108 @@ export default function StudioEngine() {
 
           {/* Scenes */}
           <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16 }}>
-            <h3 style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 12 }}>씬 구성</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {storyboard.scenes?.map((s, i) => (
-                <div key={i} onClick={() => setActiveScene(i)} style={{
-                  background: C.surface, borderRadius: 8, padding: '10px 14px',
-                  display: 'flex', alignItems: 'center', gap: 10,
-                  borderLeft: `3px solid ${TYPE_COLORS[s.type] || C.textDim}`,
-                  cursor: 'pointer', opacity: activeScene === i ? 1 : 0.65,
-                  transition: 'opacity 0.2s',
-                }}>
-                  <div style={{
-                    width: 24, height: 24, borderRadius: '50%', background: C.border,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 11, fontWeight: 700, color: C.textMuted, flexShrink: 0,
-                  }}>{s.scene_no}</div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                      <span style={{ fontSize: 9, fontWeight: 700, color: TYPE_COLORS[s.type], fontFamily: 'monospace' }}>
-                        {TYPE_LABELS[s.type] || s.type}
-                      </span>
-                      {s.model && <span style={{ fontSize: 9, color: C.textDim }}>{s.model}</span>}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <h3 style={{ fontSize: 13, fontWeight: 700, color: C.text, margin: 0 }}>씬 구성</h3>
+              {storyboard.scenes?.some(s => s.source_guide) && (
+                <span style={{ fontSize: 10, color: C.orange, fontWeight: 600 }}>
+                  소스 {Object.keys(sceneFiles).length}/{storyboard.scenes.filter(s => s.source_guide).length}
+                </span>
+              )}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {storyboard.scenes?.map((s, i) => {
+                const hasUpload = sceneFiles[s.scene_no]
+                return (
+                  <div key={i} style={{
+                    background: C.surface, borderRadius: 10, overflow: 'hidden',
+                    borderLeft: `3px solid ${TYPE_COLORS[s.type] || C.textDim}`,
+                    opacity: activeScene === i ? 1 : 0.75,
+                    transition: 'opacity 0.2s',
+                  }}>
+                    {/* 씬 헤더 */}
+                    <div onClick={() => setActiveScene(i)} style={{
+                      padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer',
+                    }}>
+                      <div style={{
+                        width: 24, height: 24, borderRadius: '50%', background: C.border,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 11, fontWeight: 700, color: C.textMuted, flexShrink: 0,
+                      }}>{s.scene_no}</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                          <span style={{ fontSize: 9, fontWeight: 700, color: TYPE_COLORS[s.type], fontFamily: 'monospace' }}>
+                            {TYPE_LABELS[s.type] || s.type}
+                          </span>
+                          {s.model && <span style={{ fontSize: 9, color: C.textDim }}>{s.model}</span>}
+                        </div>
+                        <div style={{ fontSize: 11, color: C.textMuted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {s.text_overlay || s.prompt?.substring(0, 60) || s.motion || ''}
+                        </div>
+                      </div>
+                      <span style={{ fontSize: 11, color: C.textDim, fontFamily: 'monospace', flexShrink: 0 }}>{s.duration}s</span>
                     </div>
-                    <div style={{ fontSize: 11, color: C.textMuted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {s.text_overlay || s.prompt?.substring(0, 60) || s.motion || ''}
-                    </div>
+
+                    {/* 씬별 소스 업로드 영역 (source_guide가 있는 씬만) */}
+                    {s.source_guide && (
+                      <div style={{ padding: '0 14px 10px 14px' }}>
+                        <div style={{ fontSize: 10, color: C.orange, fontWeight: 600, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <span style={{ fontSize: 12 }}>📷</span> {s.source_guide}
+                        </div>
+                        {hasUpload ? (
+                          <div style={{
+                            display: 'flex', alignItems: 'center', gap: 10,
+                            background: `${C.accent}0a`, border: `1px solid ${C.accent}33`,
+                            borderRadius: 8, padding: 8,
+                          }}>
+                            <img
+                              src={sceneFiles[s.scene_no].previewUrl}
+                              alt="uploaded"
+                              style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6 }}
+                            />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 11, color: C.accent, fontWeight: 600 }}>업로드 완료</div>
+                              <div style={{ fontSize: 10, color: C.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {sceneFiles[s.scene_no].name}
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => removeSceneFile(s.scene_no)}
+                              style={{
+                                width: 22, height: 22, borderRadius: '50%', background: `${C.red}22`,
+                                border: 'none', color: C.red, cursor: 'pointer', fontSize: 12,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                              }}
+                            >×</button>
+                          </div>
+                        ) : (
+                          <div
+                            onClick={() => sceneFileInputRefs.current[s.scene_no]?.click()}
+                            onDragOver={e => { e.preventDefault(); setDragOverScene(s.scene_no) }}
+                            onDragLeave={() => setDragOverScene(null)}
+                            onDrop={e => { e.preventDefault(); setDragOverScene(null); handleSceneFile(s.scene_no, e.dataTransfer.files) }}
+                            style={{
+                              border: `1.5px dashed ${dragOverScene === s.scene_no ? C.accent : C.border}`,
+                              borderRadius: 8, padding: '10px 12px', textAlign: 'center', cursor: 'pointer',
+                              background: dragOverScene === s.scene_no ? `${C.accent}08` : 'transparent',
+                              transition: 'all 0.2s',
+                            }}
+                          >
+                            <input
+                              ref={el => sceneFileInputRefs.current[s.scene_no] = el}
+                              type="file"
+                              accept="image/*"
+                              style={{ display: 'none' }}
+                              onChange={e => { handleSceneFile(s.scene_no, e.target.files); e.target.value = '' }}
+                            />
+                            <div style={{ fontSize: 11, color: C.textMuted }}>클릭 또는 드래그하여 업로드</div>
+                            <div style={{ fontSize: 9, color: C.textDim, marginTop: 2 }}>이미지 10MB 이내 · 선택사항</div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <span style={{ fontSize: 11, color: C.textDim, fontFamily: 'monospace', flexShrink: 0 }}>{s.duration}s</span>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
 
@@ -622,7 +582,7 @@ export default function StudioEngine() {
               <span style={{ color: C.green, fontWeight: 700 }}>${storyboard.estimated_cost?.toFixed?.(2) || '0.80'}</span>
               <span style={{ color: C.textDim, marginLeft: 8 }}>{storyboard.duration_target || targetDuration}초</span>
             </div>
-            <button onClick={() => { setStoryboard(null); setTab('input') }} style={{
+            <button onClick={() => { setStoryboard(null); setSceneFiles({}); setTab('input') }} style={{
               padding: '10px 20px', borderRadius: 8, border: `1px solid ${C.border}`,
               background: C.card, color: C.textMuted, fontSize: 12, fontWeight: 600, cursor: 'pointer',
             }}>

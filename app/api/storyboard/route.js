@@ -12,7 +12,7 @@ import { NextResponse } from 'next/server'
 export async function POST(request) {
   try {
     const body = await request.json()
-    const { product, context, ideas, videoStyle, platform, targetDuration, includeHuman, toneAndManner, sources } = body
+    const { product, context, ideas, videoStyle, platform, targetDuration, includeHuman, toneAndManner } = body
 
     const apiKey = process.env.ANTHROPIC_API_KEY
     if (!apiKey) {
@@ -48,13 +48,6 @@ export async function POST(request) {
 - CTA: ${ideas[platformKey].cta}`
       : ''
 
-    // 업로드된 소스 정보 블록
-    const hasSources = sources?.length > 0
-    const sourceBlock = hasSources
-      ? `\n업로드된 제품 소스 (motion_image 씬에서 활용 가능):
-${sources.map(s => `- ${s.key}: [${s.type}] ${s.description}`).join('\n')}`
-      : '\n제품 소스 없음 — 모든 씬을 AI 생성(ai_video/generated_image)으로 구성하세요.'
-
     const strengthsText = product.strengths?.map(s => `${s.tag} (시각: ${s.visual})`).join(', ') || ''
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -85,9 +78,11 @@ ${sources.map(s => `- ${s.key}: [${s.type}] ${s.description}`).join('\n')}`
 - generated_image: generation_prompt(영어)
 
 소스 활용 원칙:
-- 업로드된 제품 소스가 있으면 motion_image 씬에서 적극 활용하고, ai_video의 reference_image로도 참조
-- 소스가 없으면 ai_video와 generated_image만 사용 (motion_image 사용 금지)
-- 각 소스의 설명을 분석하여 가장 적합한 씬에 배치 (예: "제품 정면" → 제품 소개 씬, "사용 장면" → Solution 씬)
+- motion_image 씬: source_guide에 필요한 이미지를 구체적으로 명시 (예: "제품 정면 사진", "12종 컬러 라인업 이미지")
+- ai_video 씬: reference_image가 필요하면 source_guide에 어떤 참조 이미지가 효과적인지 명시
+- generated_image 씬: AI가 생성하므로 source_guide = null
+- source_guide는 사용자에게 "이 씬에 어떤 소스를 업로드해야 하는지" 안내하는 텍스트
+- motion_image는 반드시 source_guide를 포함해야 함 (사용자가 업로드할 이미지를 안내)
 
 text_style: bold_center_white/info_bottom_bar/highlight_keyword/cta_animated/rating_display/split_comparison
 transition: cut/fade/wipe_left/wipe_right/zoom_in/dissolve
@@ -110,11 +105,12 @@ JSON만 출력. 설명 없이.
       "timestamp_start": number,
       "model": "string (ai_video만)",
       "prompt": "string (ai_video만, 영어)",
-      "reference_image": "string (ai_video만)",
+      "reference_image": "string (ai_video만, source key)",
       "camera_movement": "string (ai_video만)",
-      "source": "string (motion_image만)",
+      "source": "string (motion_image만, source key 예: source_1)",
       "motion": "string (motion_image만)",
       "generation_prompt": "string (generated_image만, 영어)",
+      "source_guide": "string|null (사용자에게 필요한 소스 안내, 예: '제품 정면 이미지 필요')",
       "text_overlay": "string (한글 자막)",
       "text_style": "string",
       "transition_in": "string"
@@ -157,7 +153,9 @@ ${ideaBlock}
 길이: ${targetDuration || 22}초
 사람: ${includeHuman ? '포함(손/턱아래만)' : '제품만'}
 톤: ${toneAndManner || '솔직하고 드라마틱'}
-${sourceBlock}
+
+motion_image와 ai_video 씬에는 source_guide를 반드시 포함하세요 (사용자가 어떤 이미지를 업로드해야 하는지 구체적으로 안내).
+generated_image 씬은 source_guide를 null로 설정하세요.
 
 첫 2초 훅을 매우 강력하게 만들어주세요. 맥락 데이터를 적극 활용하여 타겟이 공감할 수 있는 스토리를 구성하세요.`,
           },

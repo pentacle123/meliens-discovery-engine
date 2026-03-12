@@ -33,12 +33,24 @@ export async function POST(request) {
       )
     }
 
-    // 업로드된 소스 이미지 + 레거시 images 병합
-    // 유효한 URL이 있는 항목만 포함 (빈 문자열 제외)
+    // 씬별 업로드 소스를 이미지 맵으로 변환
+    // sources: [{ key: "source_scene_2", sceneNo: 2, dataUrl: "..." }, ...]
     const allImages = []
     if (sources?.length) {
       sources.forEach(s => {
-        if (s.dataUrl) allImages.push({ key: s.key, description: s.description, url: s.dataUrl })
+        if (s.dataUrl) {
+          // 씬별 소스: key를 scene의 source 필드와 매칭
+          allImages.push({ key: s.key, description: s.description || '', url: s.dataUrl })
+          // 해당 씬의 source 필드를 이 key로 업데이트
+          if (s.sceneNo && storyboard.scenes) {
+            const scene = storyboard.scenes.find(sc => sc.scene_no === s.sceneNo)
+            if (scene) {
+              scene.source = s.key
+              // ai_video 씬이면 reference_image도 설정
+              if (scene.type === 'ai_video') scene.reference_image = s.key
+            }
+          }
+        }
       })
     }
     if (images?.length) {
@@ -46,10 +58,8 @@ export async function POST(request) {
         if (img.url) allImages.push(img)
       })
     }
-    // 유효한 이미지가 없으면 빈 배열 전달 (pipeline이 text-to-video 폴백 처리)
-    const finalImages = allImages
 
-    const result = await runPipeline(storyboard, finalImages)
+    const result = await runPipeline(storyboard, allImages)
 
     return NextResponse.json({
       success: true,
