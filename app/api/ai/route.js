@@ -126,6 +126,9 @@ ${sfTypeFilter ? `사용자가 유형 "${sfTypeFilter}"을 선택했습니다. 9
 4. 9개 조합이 서로 겹치지 않아야 합니다. 각각 완전히 다른 관점이어야 합니다.
 5. data_evidence는 STEP 3의 검증 결과 이모지(🟢/🟡/🔵)로 시작하세요.
 6. 이전에 생성했던 결과와 완전히 다른 관점으로 생성하세요. 새로운 시각, 새로운 타겟, 새로운 상황을 탐색하세요.
+7. ai_producible: 이 아이디어를 AI 영상(fal.ai Kling/FLUX)으로 100% 제작 가능한지 판단하세요.
+   - true: 제품 클로즈업, Before/After, 이미지 기반 모션 등 AI로 생성 가능한 장면 위주
+   - false: 실제 사람 연기, 특정 장소 로케이션, 실험/시연 촬영 등 실사 촬영 필요
 
 반드시 아래 JSON 형식으로만 응답하세요. 다른 텍스트 없이 JSON만:
 [
@@ -142,6 +145,7 @@ ${sfTypeFilter ? `사용자가 유형 "${sfTypeFilter}"을 선택했습니다. 9
     "INTEREST": null,
     "conversion_score": 95,
     "hook_copy": "숏폼 첫 3초 후킹 카피 한 줄 (예: '이거 안 쓰면 세안 반만 한 거임')",
+    "ai_producible": true,
     "insight": "이 조합이 효과적인 이유",
     "data_evidence": "🟢 검색: '키워드' 월 N회, 의도 T% | VOC: '관련 후기 요약'"
   }
@@ -152,6 +156,7 @@ ${sfTypeFilter ? `사용자가 유형 "${sfTypeFilter}"을 선택했습니다. 9
 - tier는 반드시 "safe", "cross", "experimental" 중 하나여야 합니다.
 - axes_used에 포함된 축만 구체적 값을 입력하고, 나머지는 null로 설정하세요.
 - hook_copy는 반드시 포함하세요. 실제 숏폼 자막으로 바로 쓸 수 있는 한 줄 카피여야 합니다.
+- ai_producible은 반드시 boolean(true/false)이어야 합니다.
 - data_evidence는 반드시 🟢/🟡/🔵 이모지로 시작하세요.`
     } else if (type === 'generate_shortform') {
       // 활성 축만 프롬프트에 포함

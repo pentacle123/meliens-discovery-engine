@@ -57,9 +57,14 @@ export default function StudioEngine() {
   const [activeScene, setActiveScene] = useState(0)
   const [videoUrl, setVideoUrl] = useState(null)
   const [generating, setGenerating] = useState(false)
+  const [assetErrors, setAssetErrors] = useState(null) // { scene_no: error_message }
   const [sceneFiles, setSceneFiles] = useState({}) // { scene_no: { file, previewUrl, ... } }
   const [dragOverScene, setDragOverScene] = useState(null)
   const sceneFileInputRefs = useRef({})
+  // 제품 소스 이미지 (제품 & 설정 탭)
+  const [sourceFiles, setSourceFiles] = useState([]) // [{ file, name, size, previewUrl }, ...]
+  const [dragOver, setDragOver] = useState(false)
+  const fileInputRef = useRef(null)
 
   // ─── Discovery Engine 데이터 수신 ───
   useEffect(() => {
@@ -77,6 +82,31 @@ export default function StudioEngine() {
     } catch (e) {
       console.error('Failed to load studio data:', e)
     }
+  }, [])
+
+  // ─── 제품 소스 파일 처리 ───
+  const handleSourceFiles = useCallback((files) => {
+    const newFiles = Array.from(files).filter(f => {
+      const isImage = f.type.startsWith('image/')
+      const isVideo = f.type.startsWith('video/')
+      return (isImage || isVideo) && f.size <= 20 * 1024 * 1024
+    }).map(f => ({
+      file: f,
+      name: f.name,
+      size: f.size,
+      type: f.type.startsWith('video/') ? 'video' : 'image',
+      previewUrl: URL.createObjectURL(f),
+    }))
+    setSourceFiles(prev => [...prev, ...newFiles])
+  }, [])
+
+  const removeSourceFile = useCallback((idx) => {
+    setSourceFiles(prev => {
+      const updated = [...prev]
+      if (updated[idx]?.previewUrl) URL.revokeObjectURL(updated[idx].previewUrl)
+      updated.splice(idx, 1)
+      return updated
+    })
   }, [])
 
   // ─── 씬별 소스 파일 처리 ───
@@ -187,7 +217,7 @@ export default function StudioEngine() {
 
     try {
       // 씬별 업로드된 소스 파일을 base64 Data URL로 변환
-      const sourcesPayload = await Promise.all(
+      const sceneSources = await Promise.all(
         Object.entries(sceneFiles).map(async ([sceneNo, sf]) => ({
           key: `source_scene_${sceneNo}`,
           sceneNo: Number(sceneNo),
@@ -197,12 +227,30 @@ export default function StudioEngine() {
         }))
       )
 
+      // 제품 소스 이미지도 base64로 변환 (reference_image로 활용)
+      const productSources = await Promise.all(
+        sourceFiles.map(async (sf, i) => ({
+          key: `product_source_${i}`,
+          type: sf.type,
+          description: sf.name,
+          dataUrl: await fileToDataUrl(sf.file),
+        }))
+      )
+
+      // images로 제품 소스 전달 (기존 images 필드)
+      const imagesPayload = productSources.map(ps => ({
+        key: ps.key,
+        description: ps.description,
+        url: ps.dataUrl,
+      }))
+
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           storyboard,
-          sources: sourcesPayload,
+          sources: sceneSources,
+          images: imagesPayload,
         }),
       })
 
@@ -211,6 +259,7 @@ export default function StudioEngine() {
       if (!data.success) throw new Error(data.error || '영상 생성 실패')
 
       setVideoUrl(data.videoUrl)
+      setAssetErrors(data.assetErrors || null)
       setTab('output')
       setProgress(100)
       setStage(`완료! 총 비용: $${data.totalCost?.toFixed(2)}`)
@@ -220,7 +269,7 @@ export default function StudioEngine() {
     } finally {
       setGenerating(false)
     }
-  }, [storyboard, sceneFiles, fileToDataUrl])
+  }, [storyboard, sceneFiles, sourceFiles, fileToDataUrl])
 
   // ─── SUB COMPONENTS ───
   function ContextTag({ dim, value }) {
@@ -317,6 +366,79 @@ export default function StudioEngine() {
             </div>
           </div>
         )}
+
+        {/* 제품 소스 이미지 업로드 */}
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: C.text, margin: 0 }}>📷 제품 소스 이미지</h3>
+            {sourceFiles.length > 0 && (
+              <span style={{ fontSize: 11, color: C.accent, fontWeight: 600 }}>{sourceFiles.length}개 업로드</span>
+            )}
+          </div>
+          <p style={{ fontSize: 11, color: C.textMuted, marginBottom: 12, lineHeight: 1.5 }}>
+            제품 사진/영상을 업로드하면 AI 영상의 참조 이미지로 사용됩니다. 더 자연스러운 결과를 얻을 수 있습니다.
+          </p>
+
+          {/* 업로드된 파일 목록 */}
+          {sourceFiles.length > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 8, marginBottom: 12 }}>
+              {sourceFiles.map((sf, i) => (
+                <div key={i} style={{
+                  position: 'relative', borderRadius: 10, overflow: 'hidden',
+                  border: `1px solid ${C.accent}33`, background: C.surface,
+                }}>
+                  <img
+                    src={sf.previewUrl}
+                    alt={sf.name}
+                    style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }}
+                  />
+                  <button
+                    onClick={() => removeSourceFile(i)}
+                    style={{
+                      position: 'absolute', top: 4, right: 4,
+                      width: 20, height: 20, borderRadius: '50%',
+                      background: 'rgba(0,0,0,0.7)', border: 'none', color: '#fff',
+                      cursor: 'pointer', fontSize: 11,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}
+                  >×</button>
+                  <div style={{
+                    position: 'absolute', bottom: 0, left: 0, right: 0,
+                    background: 'rgba(0,0,0,0.6)', padding: '3px 6px',
+                    fontSize: 9, color: '#fff', overflow: 'hidden',
+                    textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}>{sf.name}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* 드래그 앤 드롭 업로드 영역 */}
+          <div
+            onClick={() => fileInputRef.current?.click()}
+            onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={e => { e.preventDefault(); setDragOver(false); handleSourceFiles(e.dataTransfer.files) }}
+            style={{
+              border: `2px dashed ${dragOver ? C.accent : C.border}`,
+              borderRadius: 10, padding: '18px 12px', textAlign: 'center',
+              cursor: 'pointer', transition: 'all 0.2s',
+              background: dragOver ? `${C.accent}08` : 'transparent',
+            }}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,video/*"
+              multiple
+              style={{ display: 'none' }}
+              onChange={e => { handleSourceFiles(e.target.files); e.target.value = '' }}
+            />
+            <div style={{ fontSize: 24, opacity: 0.4, marginBottom: 6 }}>📷</div>
+            <div style={{ fontSize: 12, color: C.textMuted, fontWeight: 600 }}>클릭 또는 드래그하여 업로드</div>
+            <div style={{ fontSize: 10, color: C.textDim, marginTop: 4 }}>이미지/영상 여러 장 가능 · 20MB 이내 · 선택사항</div>
+          </div>
+        </div>
 
         {/* 영상 설정 */}
         <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 20 }}>
@@ -782,6 +904,29 @@ export default function StudioEngine() {
                 <p style={{ fontSize: 13, color: C.textMuted, marginBottom: 24 }}>
                   {storyboard?.metadata?.title || product?.name}
                 </p>
+
+                {/* 에셋 에러 경고 */}
+                {assetErrors && Object.keys(assetErrors).length > 0 && (
+                  <div style={{
+                    textAlign: 'left', marginBottom: 20, padding: 14,
+                    background: `${C.orange}0a`, border: `1px solid ${C.orange}33`,
+                    borderRadius: 10, maxWidth: 480, margin: '0 auto 20px',
+                  }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: C.orange, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span>⚠</span> 일부 씬에서 AI 영상 생성 문제 발생
+                    </div>
+                    {Object.entries(assetErrors).map(([sceneNo, errMsg]) => (
+                      <div key={sceneNo} style={{ fontSize: 11, color: C.textMuted, marginBottom: 4, display: 'flex', gap: 8 }}>
+                        <span style={{ color: C.orange, fontWeight: 700, flexShrink: 0 }}>씬 #{sceneNo}</span>
+                        <span>{errMsg}</span>
+                      </div>
+                    ))}
+                    <div style={{ fontSize: 10, color: C.textDim, marginTop: 8 }}>
+                      문제 씬은 정적 이미지로 대체되었습니다. 소스 이미지를 업로드하면 개선될 수 있습니다.
+                    </div>
+                  </div>
+                )}
+
                 <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginBottom: 24 }}>
                   <div style={{ padding: '7px 14px', background: C.surface, borderRadius: 8, fontSize: 12 }}>
                     <span style={{ color: C.textDim }}>길이 </span>

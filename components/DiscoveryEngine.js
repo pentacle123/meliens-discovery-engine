@@ -161,33 +161,33 @@ export default function DiscoveryEngine() {
 
     const fallbacks = {
       clenser: base([
-        { rank: 1, sf_type: "A", axes_used: ["WHO", "PAIN"], WHO: "자취 1년차 사회초년생", PAIN: "세안해도 남아있는 잔여 메이크업", conversion_score: 96, hook_copy: "이거 안 쓰면 세안 반만 한 거임", insight: "WHO의 시간 부족 + PAIN의 잔여물 고민이 원터치 솔루션으로 연결", data_evidence: "🟢 검색: '클렌저 추천' 월 8,100회 | VOC: '피부 매끈/뽀득' 만족 반응 최다" },
-        { rank: 2, sf_type: "B", axes_used: ["PAIN", "NEED"], PAIN: "일반 세안으로 잔여 메이크업이 안 지워짐", NEED: "눈에 보이는 세정력 차이", conversion_score: 93, hook_copy: "손으로 세안 vs 진동클렌저, 잔여물 차이 봐봐", insight: "초미세진동 12,000회 vs 손세안 비교 테스트로 기능 증명", data_evidence: "🟡 검색: '클렌저 세정력 비교' I 85% — 테스트 영상 수요 높음" },
-        { rank: 3, sf_type: "A", axes_used: ["WHO", "PAIN"], WHO: "뷰티 관심 대학생", PAIN: "피부 트러블 반복되는데 원인 모름", conversion_score: 90, hook_copy: "트러블 원인이 세안법이었다고?", insight: "트러블 원인 미지 — 세안법이 원인이라는 깨달음이 구매 동기", data_evidence: "🟢 검색: '피부 트러블 원인' 월 5,400회 | VOC: '사용법 콘텐츠 니즈'" },
-        { rank: 4, sf_type: "C", axes_used: ["WHO", "INTEREST"], WHO: "갓생러 루틴 관심자", INTEREST: "자기계발/갓생", conversion_score: 85, hook_copy: "갓생 루틴의 시작은 세안부터", insight: "자기계발 관심사와 스킨케어 루틴을 연결 — 카테고리 밖 도달", data_evidence: "🟡 검색: '갓생 루틴' 1월 +140% — 크로스 카테고리 유효" },
-        { rank: 5, sf_type: "C", axes_used: ["WHO", "INTEREST"], WHO: "부모님 선물 고민 자녀", INTEREST: "효도/가족", conversion_score: 83, hook_copy: "3만원으로 엄마 피부 바꿔드렸더니 반응이...", insight: "선물 카테고리와 뷰티를 연결 — 효도템 포지셔닝", data_evidence: "🟢 검색: '어버이날 선물 추천' 급증 | VOC: '어머니 선물' 빈출" },
-        { rank: 6, sf_type: "A", axes_used: ["WHO", "PAIN"], WHO: "ASMR 좋아하는 시청자", PAIN: "잠이 안 옴", INTEREST: "ASMR", conversion_score: 80, hook_copy: "클렌저 ASMR 듣다가 잠듦ㅋㅋ", insight: "ASMR 관심사와 클렌저 진동음을 연결 — 뷰티 밖 도달", data_evidence: "🟡 검색: 'ASMR 추천' 대량 검색 — 콘텐츠 크로스 가능" },
-        { rank: 7, sf_type: "C", axes_used: ["WHO", "WHERE"], WHO: "반려동물 집사", WHERE: "강아지 목욕 후", conversion_score: 72, hook_copy: "강아지 발바닥도 진동클렌징 된다고?", insight: "반려동물 케어와 클렌저 기능을 연결 — 파격적 블루오션", data_evidence: "🔵 신규 기회 — 펫 그루밍 시장과 교차" },
-        { rank: 8, sf_type: "B", axes_used: ["PAIN"], PAIN: "캠핑에서 세안이 불편", conversion_score: 68, hook_copy: "캠핑장 세면대에서 이거 꺼내면 반응이...", insight: "캠핑 상황의 세안 불편을 포터블 클렌저로 해결 — 아웃도어 확장", data_evidence: "🔵 신규 기회 — 캠핑족 위생 니즈와 연결" },
-        { rank: 9, sf_type: "A", axes_used: ["WHO", "PAIN"], WHO: "중년 남성", PAIN: "피부 관리 시작하고 싶은데 뭘 해야 할지 모름", conversion_score: 65, hook_copy: "40대 남자인데 이거 하나로 피부 달라짐", insight: "남성 스킨케어 입문 시장 — 완전 미개척 타겟", data_evidence: "🔵 신규 기회 — 남성 그루밍 시장 성장 중" },
+        { rank: 1, sf_type: "A", axes_used: ["WHO", "PAIN"], WHO: "자취 1년차 사회초년생", PAIN: "세안해도 남아있는 잔여 메이크업", conversion_score: 96, hook_copy: "이거 안 쓰면 세안 반만 한 거임", ai_producible: true, insight: "WHO의 시간 부족 + PAIN의 잔여물 고민이 원터치 솔루션으로 연결", data_evidence: "🟢 검색: '클렌저 추천' 월 8,100회 | VOC: '피부 매끈/뽀득' 만족 반응 최다" },
+        { rank: 2, sf_type: "B", axes_used: ["PAIN", "NEED"], PAIN: "일반 세안으로 잔여 메이크업이 안 지워짐", NEED: "눈에 보이는 세정력 차이", conversion_score: 93, hook_copy: "손으로 세안 vs 진동클렌저, 잔여물 차이 봐봐", ai_producible: false, insight: "초미세진동 12,000회 vs 손세안 비교 테스트로 기능 증명", data_evidence: "🟡 검색: '클렌저 세정력 비교' I 85% — 테스트 영상 수요 높음" },
+        { rank: 3, sf_type: "A", axes_used: ["WHO", "PAIN"], WHO: "뷰티 관심 대학생", PAIN: "피부 트러블 반복되는데 원인 모름", conversion_score: 90, hook_copy: "트러블 원인이 세안법이었다고?", ai_producible: true, insight: "트러블 원인 미지 — 세안법이 원인이라는 깨달음이 구매 동기", data_evidence: "🟢 검색: '피부 트러블 원인' 월 5,400회 | VOC: '사용법 콘텐츠 니즈'" },
+        { rank: 4, sf_type: "C", axes_used: ["WHO", "INTEREST"], WHO: "갓생러 루틴 관심자", INTEREST: "자기계발/갓생", conversion_score: 85, hook_copy: "갓생 루틴의 시작은 세안부터", ai_producible: true, insight: "자기계발 관심사와 스킨케어 루틴을 연결 — 카테고리 밖 도달", data_evidence: "🟡 검색: '갓생 루틴' 1월 +140% — 크로스 카테고리 유효" },
+        { rank: 5, sf_type: "C", axes_used: ["WHO", "INTEREST"], WHO: "부모님 선물 고민 자녀", INTEREST: "효도/가족", conversion_score: 83, hook_copy: "3만원으로 엄마 피부 바꿔드렸더니 반응이...", ai_producible: false, insight: "선물 카테고리와 뷰티를 연결 — 효도템 포지셔닝", data_evidence: "🟢 검색: '어버이날 선물 추천' 급증 | VOC: '어머니 선물' 빈출" },
+        { rank: 6, sf_type: "A", axes_used: ["WHO", "PAIN"], WHO: "ASMR 좋아하는 시청자", PAIN: "잠이 안 옴", INTEREST: "ASMR", conversion_score: 80, hook_copy: "클렌저 ASMR 듣다가 잠듦ㅋㅋ", ai_producible: true, insight: "ASMR 관심사와 클렌저 진동음을 연결 — 뷰티 밖 도달", data_evidence: "🟡 검색: 'ASMR 추천' 대량 검색 — 콘텐츠 크로스 가능" },
+        { rank: 7, sf_type: "C", axes_used: ["WHO", "WHERE"], WHO: "반려동물 집사", WHERE: "강아지 목욕 후", conversion_score: 72, hook_copy: "강아지 발바닥도 진동클렌징 된다고?", ai_producible: false, insight: "반려동물 케어와 클렌저 기능을 연결 — 파격적 블루오션", data_evidence: "🔵 신규 기회 — 펫 그루밍 시장과 교차" },
+        { rank: 8, sf_type: "B", axes_used: ["PAIN"], PAIN: "캠핑에서 세안이 불편", conversion_score: 68, hook_copy: "캠핑장 세면대에서 이거 꺼내면 반응이...", ai_producible: false, insight: "캠핑 상황의 세안 불편을 포터블 클렌저로 해결 — 아웃도어 확장", data_evidence: "🔵 신규 기회 — 캠핑족 위생 니즈와 연결" },
+        { rank: 9, sf_type: "A", axes_used: ["WHO", "PAIN"], WHO: "중년 남성", PAIN: "피부 관리 시작하고 싶은데 뭘 해야 할지 모름", conversion_score: 65, hook_copy: "40대 남자인데 이거 하나로 피부 달라짐", ai_producible: true, insight: "남성 스킨케어 입문 시장 — 완전 미개척 타겟", data_evidence: "🔵 신규 기회 — 남성 그루밍 시장 성장 중" },
       ]),
       lint: base([
-        { rank: 1, sf_type: "A", axes_used: ["WHO", "PAIN"], WHO: "니트 즐겨 입는 직장인", PAIN: "좋아하는 니트에 보풀이 생겨 낡아 보임", conversion_score: 97, hook_copy: "이거 안 쓰면 니트 버리는 거임", insight: "WHO의 니트 애정 + PAIN의 보풀 불만 — Before-After가 구매 트리거", data_evidence: "🟢 검색: '보풀제거기 추천' 월 12,100회, T 72%" },
-        { rank: 2, sf_type: "B", axes_used: ["PAIN"], PAIN: "소파에 보풀이 쌓여 지저분해 보임", conversion_score: 94, hook_copy: "소파 보풀 ASMR... 이 소리에 중독됨", insight: "3단 날 시스템 소재별 비교 시연 — ASMR 효과 극대화", data_evidence: "🟢 검색: '자취 청소 꿀팁' | VOC: '옷감 손상 없다'" },
-        { rank: 3, sf_type: "C", axes_used: ["WHO", "WHEN", "WHERE"], WHO: "30대 워킹맘", WHEN: "아이 등원 준비 아침", WHERE: "아이 옷장 앞", conversion_score: 91, hook_copy: "등원 5분 전 아이 옷에 보풀... 이거면 3초", insight: "바쁜 아침 라이프스타일에서 자연스러운 사용", data_evidence: "🟡 검색: '아이 옷 보풀' 30대 여성 집중" },
-        { rank: 4, sf_type: "C", axes_used: ["WHO", "INTEREST"], WHO: "빈티지 의류 수집가", INTEREST: "패션/빈티지", conversion_score: 84, hook_copy: "구제샵 니트 살리기 프로젝트", insight: "빈티지 패션과 보풀제거를 연결 — 패션 커뮤니티 도달", data_evidence: "🟡 크로스 카테고리 — 빈티지 의류 관리" },
-        { rank: 5, sf_type: "A", axes_used: ["WHO", "PAIN"], WHO: "중고거래 판매자", PAIN: "중고 옷이 보풀 때문에 안 팔림", conversion_score: 82, hook_copy: "중고거래 전 이것만 하면 가격이 달라짐", insight: "리셀/중고거래와 보풀제거를 연결", data_evidence: "🟡 검색: '중고 의류 관리' — 리셀 트렌드와 교차" },
-        { rank: 6, sf_type: "B", axes_used: ["PAIN", "NEED"], PAIN: "캐시미어 관리 비용이 너무 비쌈", NEED: "셀프 고급 관리", conversion_score: 79, hook_copy: "세탁소 1만원 vs 이거 1분, 결과 똑같음", insight: "세탁소 비용 비교로 가성비 증명", data_evidence: "🟡 VOC: '캐시미어도 안전' 고급 소재 관리 가능" },
-        { rank: 7, sf_type: "C", axes_used: ["WHO", "WHERE"], WHO: "회사원", WHERE: "사무실 책상", conversion_score: 70, hook_copy: "회사에서 몰래 보풀 밀다가 팀장이 봤는데...", INTEREST: "직장 생활", insight: "사무실 상황극 — 바이럴 잠재력", data_evidence: "🔵 신규 기회 — 직장 상황극 포맷" },
-        { rank: 8, sf_type: "A", axes_used: ["WHO", "PAIN"], WHO: "자동차 시트 관리자", PAIN: "패브릭 시트 보풀이 거슬림", conversion_score: 67, hook_copy: "차 시트 보풀도 밀어진다고?", insight: "자동차 실내 관리와 보풀제거 연결 — 의류 밖 확장", data_evidence: "🔵 신규 기회 — 자동차 관리 시장 교차" },
-        { rank: 9, sf_type: "B", axes_used: ["PAIN"], PAIN: "반려동물 털이 옷에 붙어서 곤란", conversion_score: 64, hook_copy: "고양이 집사인데 이거 없으면 출근 못 함", insight: "반려동물 털 제거와 보풀제거를 연결", data_evidence: "🔵 신규 기회 — 펫 집사 의류 관리 니즈" },
+        { rank: 1, sf_type: "A", axes_used: ["WHO", "PAIN"], WHO: "니트 즐겨 입는 직장인", PAIN: "좋아하는 니트에 보풀이 생겨 낡아 보임", conversion_score: 97, hook_copy: "이거 안 쓰면 니트 버리는 거임", ai_producible: true, insight: "WHO의 니트 애정 + PAIN의 보풀 불만 — Before-After가 구매 트리거", data_evidence: "🟢 검색: '보풀제거기 추천' 월 12,100회, T 72%" },
+        { rank: 2, sf_type: "B", axes_used: ["PAIN"], PAIN: "소파에 보풀이 쌓여 지저분해 보임", conversion_score: 94, hook_copy: "소파 보풀 ASMR... 이 소리에 중독됨", ai_producible: true, insight: "3단 날 시스템 소재별 비교 시연 — ASMR 효과 극대화", data_evidence: "🟢 검색: '자취 청소 꿀팁' | VOC: '옷감 손상 없다'" },
+        { rank: 3, sf_type: "C", axes_used: ["WHO", "WHEN", "WHERE"], WHO: "30대 워킹맘", WHEN: "아이 등원 준비 아침", WHERE: "아이 옷장 앞", conversion_score: 91, hook_copy: "등원 5분 전 아이 옷에 보풀... 이거면 3초", ai_producible: false, insight: "바쁜 아침 라이프스타일에서 자연스러운 사용", data_evidence: "🟡 검색: '아이 옷 보풀' 30대 여성 집중" },
+        { rank: 4, sf_type: "C", axes_used: ["WHO", "INTEREST"], WHO: "빈티지 의류 수집가", INTEREST: "패션/빈티지", conversion_score: 84, hook_copy: "구제샵 니트 살리기 프로젝트", ai_producible: true, insight: "빈티지 패션과 보풀제거를 연결 — 패션 커뮤니티 도달", data_evidence: "🟡 크로스 카테고리 — 빈티지 의류 관리" },
+        { rank: 5, sf_type: "A", axes_used: ["WHO", "PAIN"], WHO: "중고거래 판매자", PAIN: "중고 옷이 보풀 때문에 안 팔림", conversion_score: 82, hook_copy: "중고거래 전 이것만 하면 가격이 달라짐", ai_producible: true, insight: "리셀/중고거래와 보풀제거를 연결", data_evidence: "🟡 검색: '중고 의류 관리' — 리셀 트렌드와 교차" },
+        { rank: 6, sf_type: "B", axes_used: ["PAIN", "NEED"], PAIN: "캐시미어 관리 비용이 너무 비쌈", NEED: "셀프 고급 관리", conversion_score: 79, hook_copy: "세탁소 1만원 vs 이거 1분, 결과 똑같음", ai_producible: false, insight: "세탁소 비용 비교로 가성비 증명", data_evidence: "🟡 VOC: '캐시미어도 안전' 고급 소재 관리 가능" },
+        { rank: 7, sf_type: "C", axes_used: ["WHO", "WHERE"], WHO: "회사원", WHERE: "사무실 책상", conversion_score: 70, hook_copy: "회사에서 몰래 보풀 밀다가 팀장이 봤는데...", INTEREST: "직장 생활", ai_producible: false, insight: "사무실 상황극 — 바이럴 잠재력", data_evidence: "🔵 신규 기회 — 직장 상황극 포맷" },
+        { rank: 8, sf_type: "A", axes_used: ["WHO", "PAIN"], WHO: "자동차 시트 관리자", PAIN: "패브릭 시트 보풀이 거슬림", conversion_score: 67, hook_copy: "차 시트 보풀도 밀어진다고?", ai_producible: true, insight: "자동차 실내 관리와 보풀제거 연결 — 의류 밖 확장", data_evidence: "🔵 신규 기회 — 자동차 관리 시장 교차" },
+        { rank: 9, sf_type: "B", axes_used: ["PAIN"], PAIN: "반려동물 털이 옷에 붙어서 곤란", conversion_score: 64, hook_copy: "고양이 집사인데 이거 없으면 출근 못 함", ai_producible: false, insight: "반려동물 털 제거와 보풀제거를 연결", data_evidence: "🔵 신규 기회 — 펫 집사 의류 관리 니즈" },
       ]),
     }
     // 3개만 있는 제품은 기본 safe 3개로
     const defaultFallback = (p) => base([
-      { rank: 1, sf_type: "A", axes_used: ["WHO", "PAIN"], WHO: "일반 소비자", PAIN: `${p.strengths?.[0]?.tag || p.name} 없어서 불편`, conversion_score: 90, hook_copy: `이거 없이 어떻게 살았지?`, insight: "기본 페인포인트 자극", data_evidence: "🟡 기본 폴백" },
-      { rank: 2, sf_type: "B", axes_used: ["PAIN", "NEED"], PAIN: "기존 제품이 불만족", NEED: `${p.strengths?.[1]?.tag || '편의성'}`, conversion_score: 85, hook_copy: "기존 거 vs 이거, 차이 실화?", insight: "기능 비교 증명", data_evidence: "🟡 기본 폴백" },
-      { rank: 3, sf_type: "C", axes_used: ["WHO", "WHEN", "WHERE"], WHO: "트렌드 민감 소비자", WHEN: "일상 속", WHERE: "집에서", conversion_score: 80, hook_copy: "요즘 핫한 거 발견했는데...", insight: "라이프스타일 배치", data_evidence: "🟡 기본 폴백" },
+      { rank: 1, sf_type: "A", axes_used: ["WHO", "PAIN"], WHO: "일반 소비자", PAIN: `${p.strengths?.[0]?.tag || p.name} 없어서 불편`, conversion_score: 90, hook_copy: `이거 없이 어떻게 살았지?`, ai_producible: true, insight: "기본 페인포인트 자극", data_evidence: "🟡 기본 폴백" },
+      { rank: 2, sf_type: "B", axes_used: ["PAIN", "NEED"], PAIN: "기존 제품이 불만족", NEED: `${p.strengths?.[1]?.tag || '편의성'}`, conversion_score: 85, hook_copy: "기존 거 vs 이거, 차이 실화?", ai_producible: false, insight: "기능 비교 증명", data_evidence: "🟡 기본 폴백" },
+      { rank: 3, sf_type: "C", axes_used: ["WHO", "WHEN", "WHERE"], WHO: "트렌드 민감 소비자", WHEN: "일상 속", WHERE: "집에서", conversion_score: 80, hook_copy: "요즘 핫한 거 발견했는데...", ai_producible: true, insight: "라이프스타일 배치", data_evidence: "🟡 기본 폴백" },
     ])
     console.log(`[Fallback] 제품 ID: ${product.id}, fallback 데이터 ${fallbacks[product.id] ? '있음' : '없음 → default 폴백'}`)
     return fallbacks[product.id] || defaultFallback(product)
@@ -489,6 +489,28 @@ export default function DiscoveryEngine() {
                             <div style={{ fontSize: 13, color: C.text, fontWeight: 600, marginTop: 3, lineHeight: 1.4 }}>{ctx.hook_copy}</div>
                           </div>
                         )}
+                        {/* AI Producible badge */}
+                        <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+                          {ctx.ai_producible !== undefined && (
+                            ctx.ai_producible ? (
+                              <span style={{
+                                fontSize: 11, fontWeight: 600, padding: '4px 12px', borderRadius: 8,
+                                background: `${C.purple}18`, color: C.purple, border: `1px solid ${C.purple}30`,
+                                display: 'flex', alignItems: 'center', gap: 5,
+                              }}>
+                                <span style={{ fontSize: 13 }}>🤖</span> AI 영상 생성 가능
+                              </span>
+                            ) : (
+                              <span style={{
+                                fontSize: 11, fontWeight: 600, padding: '4px 12px', borderRadius: 8,
+                                background: `${C.blue}18`, color: C.blue, border: `1px solid ${C.blue}30`,
+                                display: 'flex', alignItems: 'center', gap: 5,
+                              }}>
+                                <span style={{ fontSize: 13 }}>📷</span> 촬영 추천
+                              </span>
+                            )
+                          )}
+                        </div>
                         {/* Axis values */}
                         <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min((ctx.axes_used || []).filter(a => ctx[a]).length || 1, 3)}, 1fr)`, gap: 6, marginBottom: 8 }}>
                           {(ctx.axes_used || ['WHO', 'WHEN', 'WHERE', 'PAIN', 'NEED', 'INTEREST']).filter(dim => ctx[dim]).map(dim => (
@@ -513,16 +535,34 @@ export default function DiscoveryEngine() {
             })}
 
             <div style={{ textAlign: 'center', marginTop: 24 }}>
-              <button
-                onClick={() => { setActiveTab(2) }}
-                style={{
-                  padding: '14px 40px', background: `linear-gradient(135deg, ${C.accent}, ${C.green})`,
-                  color: C.bg, border: 'none', borderRadius: 12, cursor: 'pointer',
-                  fontSize: 15, fontWeight: 700, transition: 'all 0.2s ease',
-                }}
-              >
-                ▸ 이 맥락으로 숏폼 아이디어 생성하기
-              </button>
+              {/* ai_producible 상태에 따른 안내 */}
+              {matchedContexts[selectedContextIdx]?.ai_producible !== undefined && (
+                <div style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 16px',
+                  borderRadius: 10, marginBottom: 12,
+                  background: matchedContexts[selectedContextIdx].ai_producible ? `${C.purple}12` : `${C.blue}12`,
+                  border: `1px solid ${matchedContexts[selectedContextIdx].ai_producible ? C.purple : C.blue}30`,
+                }}>
+                  <span style={{ fontSize: 14 }}>{matchedContexts[selectedContextIdx].ai_producible ? '🤖' : '📷'}</span>
+                  <span style={{ fontSize: 12, color: matchedContexts[selectedContextIdx].ai_producible ? C.purple : C.blue, fontWeight: 600 }}>
+                    {matchedContexts[selectedContextIdx].ai_producible
+                      ? 'AI 영상 생성 가능 — Studio에서 바로 제작할 수 있습니다'
+                      : '촬영 추천 — 실사 촬영이 더 효과적인 아이디어입니다'}
+                  </span>
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => { setActiveTab(2) }}
+                  style={{
+                    padding: '14px 40px', background: `linear-gradient(135deg, ${C.accent}, ${C.green})`,
+                    color: C.bg, border: 'none', borderRadius: 12, cursor: 'pointer',
+                    fontSize: 15, fontWeight: 700, transition: 'all 0.2s ease',
+                  }}
+                >
+                  ▸ 이 맥락으로 숏폼 아이디어 생성하기
+                </button>
+              </div>
               <p style={{ fontSize: 11, color: C.textDim, marginTop: 8 }}>
                 선택된 맥락: #{(selectedContextIdx || 0) + 1} ({matchedContexts[selectedContextIdx]?.WHO || matchedContexts[selectedContextIdx]?.PAIN || '-'})
               </p>

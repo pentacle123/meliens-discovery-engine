@@ -66,6 +66,7 @@ export async function POST(request) {
       videoUrl: result.videoUrl,
       totalCost: result.totalCost,
       generationTimeMs: result.generationTimeMs,
+      assetErrors: result.assetErrors || null,
     })
   } catch (error) {
     console.error('[Generate API] Pipeline error:', error)
