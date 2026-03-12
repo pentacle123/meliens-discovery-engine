@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { PRODUCTS, CONTEXT_DIMS, SEASON_DATA, SF_TEMPLATES } from '@/lib/data'
+import { PRODUCTS, CONTEXT_DIMS, SEASON_DATA, SF_TEMPLATES, SF_TYPES } from '@/lib/data'
 
 // ─── STYLE CONSTANTS ───
 const C = {
@@ -79,6 +79,7 @@ export default function DiscoveryEngine() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth())
   const [selectedContextIdx, setSelectedContextIdx] = useState(0)
+  const [sfTypeFilter, setSfTypeFilter] = useState(null) // null = AI 자동, 'A'|'B'|'C' = 특정 유형
   const router = useRouter()
 
   const tabs = [
@@ -99,7 +100,7 @@ export default function DiscoveryEngine() {
       const res = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'context_match', product }),
+        body: JSON.stringify({ type: 'context_match', product, sfTypeFilter }),
       })
       const data = await res.json()
       if (data.result) {
@@ -144,20 +145,21 @@ export default function DiscoveryEngine() {
   function generateFallbackContexts(product) {
     const fallbacks = {
       clenser: [
-        { rank: 1, axes_used: ["WHO", "PAIN", "NEED"], WHO: "자취 1년차 사회초년생", WHEN: null, WHERE: null, PAIN: "세안해도 남아있는 잔여 메이크업", NEED: "빠르고 확실한 클렌징", INTEREST: null, conversion_score: 96, insight: "WHO의 시간 부족 + PAIN의 잔여물 고민이 NEED의 원터치 솔루션으로 연결되어 즉각 구매를 유발", data_evidence: "'클렌저 추천' 월 8,100회 검색, 20대 여성 비율 62% — 빠른 세안 니즈 확인" },
-        { rank: 2, axes_used: ["WHO", "WHEN", "INTEREST"], WHO: "부모님 선물 고민 자녀", WHEN: "어버이날 시즌", WHERE: null, PAIN: null, NEED: null, INTEREST: "효도/가족", conversion_score: 93, insight: "WHO의 선물 고민 + WHEN의 시즌성 + INTEREST의 효도 감성이 3만원대 가격과 맞물려 충동 구매 유발", data_evidence: "'어버이날 선물 추천' 4월 검색량 급증, '뷰티 선물 3만원대' 상업 의도(C) 비율 78%" },
-        { rank: 3, axes_used: ["WHO", "PAIN"], WHO: "뷰티 관심 대학생", WHEN: null, WHERE: null, PAIN: "피부 트러블이 반복되는데 원인 모름", NEED: null, INTEREST: null, conversion_score: 90, insight: "WHO의 뷰티 관심 + PAIN의 트러블 원인 미지 — 세안 방법이 원인이라는 깨달음이 구매 동기", data_evidence: "'피부 트러블 원인' 월 5,400회 검색, 정보성(I) 의도 85% — 교육 콘텐츠 효과적" },
-        { rank: 4, axes_used: ["WHEN", "PAIN", "NEED"], WHO: null, WHEN: "새해 첫 주 루틴 시작", WHERE: null, PAIN: "루틴을 시작하고 싶은데 뭘 사야 할지 모름", NEED: "시작하기 쉬운 루틴 아이템", INTEREST: null, conversion_score: 87, insight: "WHEN의 새해 다짐 시즌 + PAIN의 선택 장벽 + NEED의 쉬운 진입이 충동 구매 트리거", data_evidence: "'스킨케어 루틴 추천' 1월 검색량 전월 대비 +140%, 거래 의도(T) 비율 45%" },
-        { rank: 5, axes_used: ["WHERE", "INTEREST"], WHO: null, WHEN: null, WHERE: "SNS 피드 스크롤 중", PAIN: null, NEED: null, INTEREST: "ASMR", conversion_score: 84, insight: "WHERE의 SNS 발견 + INTEREST의 ASMR 콘텐츠 — 12종 컬러 바꿈 영상이 시선 정지 유발", data_evidence: "'클렌저 ASMR' 연관 검색 증가세, 13~19세 비율 높음 — 숏폼 친화 타겟" },
+        { rank: 1, sf_type: "A", axes_used: ["WHO", "PAIN"], WHO: "자취 1년차 사회초년생", WHEN: null, WHERE: null, PAIN: "세안해도 남아있는 잔여 메이크업", NEED: null, INTEREST: null, conversion_score: 96, insight: "WHO의 시간 부족 + PAIN의 잔여물 고민이 원터치 솔루션으로 연결되어 즉각 구매를 유발", data_evidence: "'클렌저 추천' 월 8,100회 검색, 20대 여성 비율 62% — 빠른 세안 니즈 확인" },
+        { rank: 2, sf_type: "B", axes_used: ["PAIN", "NEED"], WHO: null, WHEN: null, WHERE: null, PAIN: "일반 세안으로 잔여 메이크업이 안 지워짐", NEED: "눈에 보이는 세정력 차이", INTEREST: null, conversion_score: 93, insight: "초미세진동 12,000회 vs 손세안 비교 테스트로 기능 증명 — 수치가 신뢰 트리거", data_evidence: "'클렌저 세정력 비교' 정보 의도(I) 85%, 영상 SERP 노출 — 테스트 영상 수요 높음" },
+        { rank: 3, sf_type: "A", axes_used: ["WHO", "PAIN"], WHO: "뷰티 관심 대학생", WHEN: null, WHERE: null, PAIN: "피부 트러블이 반복되는데 원인 모름", NEED: null, INTEREST: null, conversion_score: 90, insight: "WHO의 뷰티 관심 + PAIN의 트러블 원인 미지 — 세안법이 원인이라는 깨달음이 구매 동기", data_evidence: "'피부 트러블 원인' 월 5,400회 검색, 정보성(I) 의도 85% — 교육 콘텐츠 효과적" },
+        { rank: 4, sf_type: "C", axes_used: ["WHO", "WHEN", "WHERE"], WHO: "갓생러 루틴 관심자", WHEN: "새해 첫 주 루틴 시작", WHERE: "원룸 세면대 앞", PAIN: null, NEED: null, INTEREST: null, conversion_score: 87, insight: "새해 아침루틴 장면에 자연스럽게 배치 — 라이프스타일 공감이 도달 범위 확대", data_evidence: "'스킨케어 루틴 추천' 1월 검색량 전월 대비 +140%, 거래 의도(T) 45%" },
+        { rank: 5, sf_type: "C", axes_used: ["WHO", "WHEN", "WHERE"], WHO: "부모님 선물 고민 자녀", WHEN: "어버이날 시즌", WHERE: "온라인 쇼핑 중", PAIN: null, NEED: null, INTEREST: null, conversion_score: 84, insight: "선물 고민 상황 + 언박싱 장면이 감성 CTA로 연결 — 3만원대 가격이 부담 없는 선택지", data_evidence: "'어버이날 선물 추천' 4월 검색량 급증, 상업 의도(C) 78%" },
       ],
       lint: [
-        { rank: 1, axes_used: ["WHO", "PAIN"], WHO: "니트 즐겨 입는 직장인", WHEN: null, WHERE: null, PAIN: "좋아하는 니트에 보풀이 생겨 낡아 보임", NEED: null, INTEREST: null, conversion_score: 97, insight: "WHO의 니트 애정 + PAIN의 보풀 불만 — Before-After가 가장 강력한 구매 트리거", data_evidence: "'보풀제거기 추천' 월 12,100회 검색, 거래 의도(T) 72% — 즉시 구매 전환 높음" },
-        { rank: 2, axes_used: ["WHERE", "PAIN", "INTEREST"], WHO: null, WHEN: null, WHERE: "원룸 소파/침구", PAIN: "소파에 보풀이 쌓여 지저분해 보임", NEED: null, INTEREST: "자취생 꿀팁", conversion_score: 94, insight: "WHERE의 자취 공간 + PAIN의 보풀 불편 + INTEREST의 꿀팁 콘텐츠가 ASMR 청소 영상으로 연결", data_evidence: "'자취 청소 꿀팁' 월 3,200회, 20대 남녀 균등 — 성별 무관 타겟 가능" },
-        { rank: 3, axes_used: ["WHO", "WHEN", "NEED"], WHO: "30대 워킹맘", WHEN: "아이 등원 준비 아침", WHERE: null, PAIN: null, NEED: "빠른 아침 준비", INTEREST: null, conversion_score: 91, insight: "WHO의 워킹맘 + WHEN의 바쁜 아침 + NEED의 빠른 처리가 공감 맥락 형성", data_evidence: "'아이 옷 보풀' 관련 검색 30대 여성 집중, 상업 의도(C) 65% — 비교 콘텐츠 효과적" },
+        { rank: 1, sf_type: "A", axes_used: ["WHO", "PAIN"], WHO: "니트 즐겨 입는 직장인", WHEN: null, WHERE: null, PAIN: "좋아하는 니트에 보풀이 생겨 낡아 보임", NEED: null, INTEREST: null, conversion_score: 97, insight: "WHO의 니트 애정 + PAIN의 보풀 불만 — Before-After가 가장 강력한 구매 트리거", data_evidence: "'보풀제거기 추천' 월 12,100회 검색, 거래 의도(T) 72% — 즉시 구매 전환 높음" },
+        { rank: 2, sf_type: "B", axes_used: ["PAIN"], WHO: null, WHEN: null, WHERE: null, PAIN: "소파에 보풀이 쌓여 지저분해 보임", NEED: null, INTEREST: null, conversion_score: 94, insight: "3단 날 시스템의 절삭력을 소파/니트/침구 소재별로 비교 시연 — ASMR 효과 극대화", data_evidence: "'자취 청소 꿀팁' 월 3,200회, 20대 남녀 균등 — 성별 무관 타겟 가능" },
+        { rank: 3, sf_type: "C", axes_used: ["WHO", "WHEN", "WHERE"], WHO: "30대 워킹맘", WHEN: "아이 등원 준비 아침", WHERE: "아이 옷장 앞", PAIN: null, NEED: null, INTEREST: null, conversion_score: 91, insight: "바쁜 아침 라이프스타일 장면에서 자연스러운 사용 — 육아맘 공감 도달 확대", data_evidence: "'아이 옷 보풀' 관련 검색 30대 여성 집중, 상업 의도(C) 65% — 비교 콘텐츠 효과적" },
       ],
       carholder: [
-        { rank: 1, axes_used: ["WHO", "PAIN", "NEED"], WHO: "차량 통근자", WHEN: null, WHERE: null, PAIN: "기존 거치대가 주행중 흔들려서 불안", NEED: "안전하고 편한 내비 사용", INTEREST: null, conversion_score: 96, insight: "WHO의 매일 운전 + PAIN의 흔들림 불안 + NEED의 안전 사용이 과속방지턱 테스트 영상으로 증명", data_evidence: "'차량 거치대 추천' 월 14,800회, 거래 의도(T) 81% — 구매 전환 최고 수준" },
-        { rank: 2, axes_used: ["WHO", "WHEN"], WHO: "신차 구매자", WHEN: "차량 인테리어 세팅 시점", WHERE: null, PAIN: null, NEED: null, INTEREST: null, conversion_score: 92, insight: "WHO의 신차 구매 + WHEN의 세팅 시점 — 신차 꾸미기 콘텐츠에서 자연스럽게 발견", data_evidence: "'신차 필수템' 월 6,500회 검색, 네비 의도(N) 41% — 브랜드 노출 기회" },
+        { rank: 1, sf_type: "A", axes_used: ["WHO", "PAIN"], WHO: "차량 통근자", WHEN: null, WHERE: null, PAIN: "기존 거치대가 주행중 흔들려서 불안", NEED: null, INTEREST: null, conversion_score: 96, insight: "WHO의 매일 운전 + PAIN의 흔들림 불안이 과속방지턱 테스트 영상으로 연결", data_evidence: "'차량 거치대 추천' 월 14,800회, 거래 의도(T) 81% — 구매 전환 최고 수준" },
+        { rank: 2, sf_type: "B", axes_used: ["PAIN"], WHO: null, WHEN: null, WHERE: null, PAIN: "폰이 무거워지면서 기존 거치대가 못 버팀", NEED: null, INTEREST: null, conversion_score: 93, insight: "무게 테스트(아이폰 Pro Max 240g) + 과속방지턱 진동 테스트로 기능 증명", data_evidence: "'차량 거치대 흔들림' 검색 증가, 정보 의도(I) 72% — 비교 영상 수요 높음" },
+        { rank: 3, sf_type: "C", axes_used: ["WHO", "WHEN", "WHERE"], WHO: "신차 구매자", WHEN: "차량 인테리어 세팅 시점", WHERE: "차 안 운전석", PAIN: null, NEED: null, INTEREST: null, conversion_score: 90, insight: "신차 꾸미기 라이프스타일 영상에서 자연스러운 배치 — 인테리어 감성 도달 확대", data_evidence: "'신차 필수템' 월 6,500회 검색, 네비 의도(N) 41% — 브랜드 노출 기회" },
       ],
     }
     return fallbacks[product.id] || fallbacks.clenser
@@ -295,6 +297,42 @@ export default function DiscoveryEngine() {
           </button>
         </div>
 
+        {/* 숏폼 유형 선택 */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 8 }}>숏폼 유형 필터 — AI 자동 추천 또는 특정 유형 선택</div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              onClick={() => setSfTypeFilter(null)}
+              style={{
+                padding: '8px 16px', borderRadius: 10, cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                background: sfTypeFilter === null ? C.accent : C.card,
+                color: sfTypeFilter === null ? C.bg : C.textMuted,
+                border: `1px solid ${sfTypeFilter === null ? C.accent : C.border}`,
+                transition: 'all 0.2s ease',
+              }}
+            >
+              AI 자동 추천
+            </button>
+            {Object.values(SF_TYPES).map(t => (
+              <button
+                key={t.id}
+                onClick={() => setSfTypeFilter(sfTypeFilter === t.id ? null : t.id)}
+                style={{
+                  padding: '8px 16px', borderRadius: 10, cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                  background: sfTypeFilter === t.id ? `${t.color}22` : C.card,
+                  color: sfTypeFilter === t.id ? t.color : C.textMuted,
+                  border: `1px solid ${sfTypeFilter === t.id ? t.color : C.border}`,
+                  transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', gap: 6,
+                }}
+              >
+                <span>{t.icon}</span>
+                <span>{t.id}. {t.label}</span>
+                <span style={{ fontSize: 10, opacity: 0.7 }}>({t.badge})</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* 6-Axis Overview (제품별 맞춤) */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginBottom: 24 }}>
           {Object.entries(CONTEXT_DIMS).map(([key, dim]) => {
@@ -347,6 +385,18 @@ export default function DiscoveryEngine() {
                         width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
                         fontSize: 13, fontWeight: 700,
                       }}>{ctx.rank || i + 1}</span>
+                      {ctx.sf_type && SF_TYPES[ctx.sf_type] && (
+                        <span style={{
+                          fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 8,
+                          background: `${SF_TYPES[ctx.sf_type].color}20`,
+                          color: SF_TYPES[ctx.sf_type].color,
+                          border: `1px solid ${SF_TYPES[ctx.sf_type].color}40`,
+                          whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 3,
+                        }}>
+                          <span>{SF_TYPES[ctx.sf_type].icon}</span>
+                          {ctx.sf_type}. {SF_TYPES[ctx.sf_type].label}
+                        </span>
+                      )}
                       <span style={{ fontSize: 13, color: C.textMuted, lineHeight: 1.4 }}>{ctx.insight}</span>
                     </div>
                     <div style={{ background: C.accentDim, padding: '4px 14px', borderRadius: 20, marginLeft: 12, flexShrink: 0 }}>
@@ -417,7 +467,13 @@ export default function DiscoveryEngine() {
 
         {/* Context Summary */}
         <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 20, display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-          <span style={{ fontSize: 12, color: C.textMuted, marginRight: 4 }}>적용 맥락:</span>
+          {ctx.sf_type && SF_TYPES[ctx.sf_type] && (
+            <span style={{
+              fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 8, marginRight: 4,
+              background: `${SF_TYPES[ctx.sf_type].color}20`, color: SF_TYPES[ctx.sf_type].color,
+              border: `1px solid ${SF_TYPES[ctx.sf_type].color}40`,
+            }}>{SF_TYPES[ctx.sf_type].icon} {ctx.sf_type}. {SF_TYPES[ctx.sf_type].label}</span>
+          )}
           {(ctx.axes_used || ['WHO', 'WHEN', 'WHERE', 'PAIN', 'NEED', 'INTEREST']).filter(dim => ctx[dim]).map(dim => (
             <Tag key={dim} small color={dimColor(dim)}>{dim}: {ctx[dim]}</Tag>
           ))}

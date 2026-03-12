@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 
 export async function POST(request) {
   try {
-    const { type, product, context } = await request.json()
+    const { type, product, context, sfTypeFilter } = await request.json()
 
     const apiKey = process.env.ANTHROPIC_API_KEY
     if (!apiKey) {
@@ -37,37 +37,57 @@ ${contextRef}
 이 검색 데이터를 근거로 실제 소비자가 어떤 기대와 우려를 갖고 검색하는지 파악한 뒤, 그 데이터를 기반으로 맥락 조합을 만드세요.
 gl(국가코드)은 "kr"로 설정하세요.
 
+═══ 숏폼 유형 시스템 ═══
+멜리언스 숏폼은 3가지 유형으로 작동합니다. 각 맥락 조합에 가장 적합한 유형을 배정하세요.
+
+유형 A - "페인포인트 자극형" (전환율 최고)
+  구조: 문제 상황 클로즈업 → 제품 등장 → Before/After → 가격+CTA
+  맥락 축: WHO + PAIN 중심 (2축)
+  예: "니트 즐겨입는 직장인 + 옷이 낡아보여서 스트레스"
+
+유형 B - "기능 증명형" (신뢰도 최고)
+  구조: 실험/비교/테스트 → 수치 증명 → 결과 → CTA
+  맥락 축: PAIN + 제품 강점 중심 (기능 소구)
+  예: "거치대가 흔들리는 문제 + 과속방지턱 테스트"
+
+유형 C - "상황 제안형" (도달 범위 최고)
+  구조: 라이프스타일 장면 → 자연스러운 제품 배치 → 공감 → CTA
+  맥락 축: WHO + WHEN + WHERE (3축, 상황 중심)
+  예: "자취 1년차 + 아침 출근 전 + 원룸 세면대"
+
+${sfTypeFilter ? `사용자가 유형 "${sfTypeFilter}"을 선택했습니다. 5개 조합 모두 유형 ${sfTypeFilter}로 생성하세요.` : '5개 조합에 유형을 다양하게 배분하세요 (A 2개, B 1~2개, C 1~2개 권장). 제품 특성에 따라 유형 비중을 조절하세요.'}
+
 ═══ 핵심 원칙 ═══
 1. 6개 축(WHO/WHEN/WHERE/PAIN/NEED/INTEREST)을 전부 연결하지 마세요.
-2. 각 조합에서 2~3개 축만 선택하여 날카로운 연결을 만드세요.
-   예: "WHO + PAIN + NEED" 또는 "WHO + WHEN + WHERE"
-3. 축이 적을수록 메시지가 선명하고 실행 가능한 숏폼이 됩니다.
-4. 같은 축 조합 패턴이 반복되지 않도록 다양하게 만드세요.
-5. 매우 구체적이고 현실적인 상황을 묘사하세요.
+2. 유형에 따라 적합한 축 조합을 사용하세요:
+   - 유형 A: WHO + PAIN (2축)
+   - 유형 B: PAIN 필수 + 제품 강점 연결 (1~2축)
+   - 유형 C: WHO + WHEN + WHERE (3축)
+3. 매우 구체적이고 현실적인 상황을 묘사하세요.
    발견 커머스에서 스크롤 중 "어, 이거 나한테 필요한데?"라고 느끼게 만드는 맥락이어야 합니다.
-6. 각 조합에 data_evidence 필드를 추가해서, 검색 데이터에서 발견한 근거를 한 줄로 요약하세요.
+4. 각 조합에 data_evidence 필드를 추가해서, 검색 데이터에서 발견한 근거를 한 줄로 요약하세요.
 
 반드시 아래 JSON 형식으로만 응답하세요. 다른 텍스트 없이 JSON만:
 [
   {
     "rank": 1,
-    "axes_used": ["WHO", "PAIN", "NEED"],
+    "sf_type": "A",
+    "axes_used": ["WHO", "PAIN"],
     "WHO": "구체적 타겟",
     "PAIN": "구체적 페인포인트",
-    "NEED": "구체적 니즈",
     "WHEN": null,
     "WHERE": null,
+    "NEED": null,
     "INTEREST": null,
     "conversion_score": 95,
-    "insight": "이 조합이 효과적인 이유 (어떤 축의 연결이 핵심인지)",
-    "data_evidence": "검색 데이터 근거 한 줄 요약 (예: '클렌저 추천' 월 12,000회 검색, 20대 여성 비율 68%)"
+    "insight": "이 조합이 효과적인 이유",
+    "data_evidence": "검색 데이터 근거 한 줄 요약"
   }
 ]
 
 주의:
-- axes_used에 포함된 축만 구체적 값을 입력하세요.
-- axes_used에 포함되지 않은 축은 반드시 null로 설정하세요.
-- axes_used는 반드시 2개 또는 3개여야 합니다.
+- sf_type은 반드시 "A", "B", "C" 중 하나여야 합니다.
+- axes_used에 포함된 축만 구체적 값을 입력하고, 나머지는 null로 설정하세요.
 - data_evidence는 리스닝마인드 검색 데이터에서 발견한 구체적 수치나 인사이트를 반드시 포함하세요.`
     } else if (type === 'generate_shortform') {
       // 활성 축만 프롬프트에 포함
@@ -77,6 +97,25 @@ gl(국가코드)은 "kr"로 설정하세요.
       const contextLines = activeAxes
         .map(axis => `- ${axisLabels[axis]}(${axis}): ${context[axis]}`)
         .join('\n')
+
+      const sfType = context.sf_type || 'A'
+      const typeStructures = {
+        A: `유형 A "페인포인트 자극형" — 전환율 극대화
+  1. HOOK (0~3초): 페인포인트/문제 상황 클로즈업으로 스크롤 정지
+  2. REVEAL (3~8초): 제품 등장 — 문제 해결 시작
+  3. PROOF (8~22초): Before/After 극적 비교
+  4. CTA (마지막 5초): 가격 + 구매 링크`,
+        B: `유형 B "기능 증명형" — 신뢰도 극대화
+  1. HOOK (0~3초): 도발적 질문 또는 실험 예고
+  2. TEST (3~15초): 실험/비교/테스트 과정 시연
+  3. RESULT (15~22초): 수치/증거로 결과 증명
+  4. CTA (마지막 5초): 기능 요약 + 구매 링크`,
+        C: `유형 C "상황 제안형" — 도달 범위 극대화
+  1. HOOK (0~3초): 공감 가는 라이프스타일 장면
+  2. BLEND (3~12초): 자연스러운 제품 배치 (일상 속 사용)
+  3. VIBE (12~22초): 사용 후 분위기/감성 전환
+  4. CTA (마지막 5초): 감성 CTA + 저장/공유 유도`,
+      }
 
       prompt = `당신은 발견 커머스 숏폼 콘텐츠 크리에이터입니다. 즉각적 구매를 유발하는 숏폼에 특화되어 있습니다.
 
@@ -90,11 +129,8 @@ gl(국가코드)은 "kr"로 설정하세요.
 맥락 조합:
 ${contextLines}
 
-숏폼 구조 원칙:
-1. HOOK (0~3초): 페인포인트/상황을 시각적으로 보여줘 스크롤을 멈추게 함
-2. TRANSITION (3~10초): 제품 등장 + 작동
-3. PROOF (10~25초): Before-After, 비교, 실사용
-4. CTA (마지막 5초): 가격/혜택/링크
+═══ 숏폼 구조 (${sfType}유형 적용) ═══
+${typeStructures[sfType] || typeStructures.A}
 
 YouTube Shorts는 검색 의도가 있는 사용자를 위해 정보성+엔터테인먼트 밸런스.
 Instagram Reels는 피드 스크롤 중 발견하는 사용자를 위해 시각적 임팩트+감성 중심.
