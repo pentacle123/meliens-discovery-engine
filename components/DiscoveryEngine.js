@@ -96,6 +96,7 @@ export default function DiscoveryEngine() {
     setMatchedContexts(null)
     setGeneratedIdeas(null)
     setSelectedContextIdx(0)
+    console.log(`[DiscoveryEngine] 맥락 매칭 시작 — 제품: ${product.name} (${product.id}), 유형 필터: ${sfTypeFilter || 'AI 자동'}`)
     try {
       const res = await fetch('/api/ai', {
         method: 'POST',
@@ -103,14 +104,16 @@ export default function DiscoveryEngine() {
         body: JSON.stringify({ type: 'context_match', product, sfTypeFilter }),
       })
       const data = await res.json()
+      console.log(`[DiscoveryEngine] API 응답 수신 — 상태: ${res.status}, 결과: ${data.result ? '성공' : '실패'}`)
       if (data.result) {
+        console.log(`[DiscoveryEngine] AI 매칭 결과 ${data.result.length}개 수신`)
         setMatchedContexts(data.result)
       } else {
         throw new Error(data.error || 'AI 응답 오류')
       }
     } catch (e) {
-      console.error('Context matching error:', e)
-      // Fallback data for demo
+      console.error('[DiscoveryEngine] Context matching error:', e)
+      console.log(`[DiscoveryEngine] Fallback 데이터 사용 — 제품 ID: ${product.id}`)
       setMatchedContexts(generateFallbackContexts(product))
     }
     setIsMatching(false)
@@ -121,6 +124,7 @@ export default function DiscoveryEngine() {
     setIsGenerating(true)
     setGeneratedIdeas(null)
     const ctx = matchedContexts[selectedContextIdx]
+    console.log(`[DiscoveryEngine] 숏폼 생성 시작 — 제품: ${selectedProduct.name}, 맥락 #${selectedContextIdx + 1}, 유형: ${ctx.sf_type || 'N/A'}`)
     try {
       const res = await fetch('/api/ai', {
         method: 'POST',
@@ -128,13 +132,15 @@ export default function DiscoveryEngine() {
         body: JSON.stringify({ type: 'generate_shortform', product: selectedProduct, context: ctx }),
       })
       const data = await res.json()
+      console.log(`[DiscoveryEngine] 숏폼 API 응답 — 상태: ${res.status}, 결과: ${data.result ? '성공' : '실패'}`)
       if (data.result) {
         setGeneratedIdeas(data.result)
       } else {
         throw new Error(data.error || 'AI 응답 오류')
       }
     } catch (e) {
-      console.error('Shortform generation error:', e)
+      console.error('[DiscoveryEngine] Shortform generation error:', e)
+      console.log(`[DiscoveryEngine] Fallback 숏폼 사용`)
       setGeneratedIdeas(generateFallbackIdeas(selectedProduct, ctx))
     }
     setIsGenerating(false)
@@ -145,23 +151,49 @@ export default function DiscoveryEngine() {
   function generateFallbackContexts(product) {
     const fallbacks = {
       clenser: [
-        { rank: 1, sf_type: "A", axes_used: ["WHO", "PAIN"], WHO: "자취 1년차 사회초년생", WHEN: null, WHERE: null, PAIN: "세안해도 남아있는 잔여 메이크업", NEED: null, INTEREST: null, conversion_score: 96, insight: "WHO의 시간 부족 + PAIN의 잔여물 고민이 원터치 솔루션으로 연결되어 즉각 구매를 유발", data_evidence: "'클렌저 추천' 월 8,100회 검색, 20대 여성 비율 62% — 빠른 세안 니즈 확인" },
-        { rank: 2, sf_type: "B", axes_used: ["PAIN", "NEED"], WHO: null, WHEN: null, WHERE: null, PAIN: "일반 세안으로 잔여 메이크업이 안 지워짐", NEED: "눈에 보이는 세정력 차이", INTEREST: null, conversion_score: 93, insight: "초미세진동 12,000회 vs 손세안 비교 테스트로 기능 증명 — 수치가 신뢰 트리거", data_evidence: "'클렌저 세정력 비교' 정보 의도(I) 85%, 영상 SERP 노출 — 테스트 영상 수요 높음" },
-        { rank: 3, sf_type: "A", axes_used: ["WHO", "PAIN"], WHO: "뷰티 관심 대학생", WHEN: null, WHERE: null, PAIN: "피부 트러블이 반복되는데 원인 모름", NEED: null, INTEREST: null, conversion_score: 90, insight: "WHO의 뷰티 관심 + PAIN의 트러블 원인 미지 — 세안법이 원인이라는 깨달음이 구매 동기", data_evidence: "'피부 트러블 원인' 월 5,400회 검색, 정보성(I) 의도 85% — 교육 콘텐츠 효과적" },
-        { rank: 4, sf_type: "C", axes_used: ["WHO", "WHEN", "WHERE"], WHO: "갓생러 루틴 관심자", WHEN: "새해 첫 주 루틴 시작", WHERE: "원룸 세면대 앞", PAIN: null, NEED: null, INTEREST: null, conversion_score: 87, insight: "새해 아침루틴 장면에 자연스럽게 배치 — 라이프스타일 공감이 도달 범위 확대", data_evidence: "'스킨케어 루틴 추천' 1월 검색량 전월 대비 +140%, 거래 의도(T) 45%" },
-        { rank: 5, sf_type: "C", axes_used: ["WHO", "WHEN", "WHERE"], WHO: "부모님 선물 고민 자녀", WHEN: "어버이날 시즌", WHERE: "온라인 쇼핑 중", PAIN: null, NEED: null, INTEREST: null, conversion_score: 84, insight: "선물 고민 상황 + 언박싱 장면이 감성 CTA로 연결 — 3만원대 가격이 부담 없는 선택지", data_evidence: "'어버이날 선물 추천' 4월 검색량 급증, 상업 의도(C) 78%" },
+        { rank: 1, sf_type: "A", axes_used: ["WHO", "PAIN"], WHO: "자취 1년차 사회초년생", WHEN: null, WHERE: null, PAIN: "세안해도 남아있는 잔여 메이크업", NEED: null, INTEREST: null, conversion_score: 96, insight: "WHO의 시간 부족 + PAIN의 잔여물 고민이 원터치 솔루션으로 연결되어 즉각 구매를 유발", data_evidence: "🟢 검색: '클렌저 추천' 월 8,100회, 20대 여성 62% | VOC: '피부 매끈/뽀득' 만족 반응 최다" },
+        { rank: 2, sf_type: "B", axes_used: ["PAIN", "NEED"], WHO: null, WHEN: null, WHERE: null, PAIN: "일반 세안으로 잔여 메이크업이 안 지워짐", NEED: "눈에 보이는 세정력 차이", INTEREST: null, conversion_score: 93, insight: "초미세진동 12,000회 vs 손세안 비교 테스트로 기능 증명 — 수치가 신뢰 트리거", data_evidence: "🟡 검색: '클렌저 세정력 비교' I 85%, 영상 SERP 노출 — 테스트 영상 수요 높음" },
+        { rank: 3, sf_type: "A", axes_used: ["WHO", "PAIN"], WHO: "뷰티 관심 대학생", WHEN: null, WHERE: null, PAIN: "피부 트러블이 반복되는데 원인 모름", NEED: null, INTEREST: null, conversion_score: 90, insight: "WHO의 뷰티 관심 + PAIN의 트러블 원인 미지 — 세안법이 원인이라는 깨달음이 구매 동기", data_evidence: "🟢 검색: '피부 트러블 원인' 월 5,400회, I 85% | VOC: '설명서 안 보고 써서 자극' 사용법 콘텐츠 니즈" },
+        { rank: 4, sf_type: "C", axes_used: ["WHO", "WHEN", "WHERE"], WHO: "갓생러 루틴 관심자", WHEN: "새해 첫 주 루틴 시작", WHERE: "원룸 세면대 앞", PAIN: null, NEED: null, INTEREST: null, conversion_score: 87, insight: "새해 아침루틴 장면에 자연스럽게 배치 — 라이프스타일 공감이 도달 범위 확대", data_evidence: "🟡 검색: '스킨케어 루틴 추천' 1월 +140%, T 45% — 시즌 타겟 유효" },
+        { rank: 5, sf_type: "C", axes_used: ["WHO", "WHEN", "WHERE"], WHO: "부모님 선물 고민 자녀", WHEN: "어버이날 시즌", WHERE: "온라인 쇼핑 중", PAIN: null, NEED: null, INTEREST: null, conversion_score: 84, insight: "선물 고민 상황 + 언박싱 장면이 감성 CTA로 연결 — 3만원대 가격이 부담 없는 선택지", data_evidence: "🟢 검색: '어버이날 선물 추천' 4월 급증, C 78% | VOC: '어머니 선물/친구 추천' 선물 구매 빈출" },
       ],
       lint: [
-        { rank: 1, sf_type: "A", axes_used: ["WHO", "PAIN"], WHO: "니트 즐겨 입는 직장인", WHEN: null, WHERE: null, PAIN: "좋아하는 니트에 보풀이 생겨 낡아 보임", NEED: null, INTEREST: null, conversion_score: 97, insight: "WHO의 니트 애정 + PAIN의 보풀 불만 — Before-After가 가장 강력한 구매 트리거", data_evidence: "'보풀제거기 추천' 월 12,100회 검색, 거래 의도(T) 72% — 즉시 구매 전환 높음" },
-        { rank: 2, sf_type: "B", axes_used: ["PAIN"], WHO: null, WHEN: null, WHERE: null, PAIN: "소파에 보풀이 쌓여 지저분해 보임", NEED: null, INTEREST: null, conversion_score: 94, insight: "3단 날 시스템의 절삭력을 소파/니트/침구 소재별로 비교 시연 — ASMR 효과 극대화", data_evidence: "'자취 청소 꿀팁' 월 3,200회, 20대 남녀 균등 — 성별 무관 타겟 가능" },
-        { rank: 3, sf_type: "C", axes_used: ["WHO", "WHEN", "WHERE"], WHO: "30대 워킹맘", WHEN: "아이 등원 준비 아침", WHERE: "아이 옷장 앞", PAIN: null, NEED: null, INTEREST: null, conversion_score: 91, insight: "바쁜 아침 라이프스타일 장면에서 자연스러운 사용 — 육아맘 공감 도달 확대", data_evidence: "'아이 옷 보풀' 관련 검색 30대 여성 집중, 상업 의도(C) 65% — 비교 콘텐츠 효과적" },
+        { rank: 1, sf_type: "A", axes_used: ["WHO", "PAIN"], WHO: "니트 즐겨 입는 직장인", WHEN: null, WHERE: null, PAIN: "좋아하는 니트에 보풀이 생겨 낡아 보임", NEED: null, INTEREST: null, conversion_score: 97, insight: "WHO의 니트 애정 + PAIN의 보풀 불만 — Before-After가 가장 강력한 구매 트리거", data_evidence: "🟢 검색: '보풀제거기 추천' 월 12,100회, T 72% | VOC: '인스타 광고 보고 샀다' 구매 경로 1위" },
+        { rank: 2, sf_type: "B", axes_used: ["PAIN"], WHO: null, WHEN: null, WHERE: null, PAIN: "소파에 보풀이 쌓여 지저분해 보임", NEED: null, INTEREST: null, conversion_score: 94, insight: "3단 날 시스템의 절삭력을 소파/니트/침구 소재별로 비교 시연 — ASMR 효과 극대화", data_evidence: "🟢 검색: '자취 청소 꿀팁' 월 3,200회, 남녀 균등 | VOC: '옷감 손상 걱정했는데 없다' 핵심 우려 해소" },
+        { rank: 3, sf_type: "C", axes_used: ["WHO", "WHEN", "WHERE"], WHO: "30대 워킹맘", WHEN: "아이 등원 준비 아침", WHERE: "아이 옷장 앞", PAIN: null, NEED: null, INTEREST: null, conversion_score: 91, insight: "바쁜 아침 라이프스타일 장면에서 자연스러운 사용 — 육아맘 공감 도달 확대", data_evidence: "🟡 검색: '아이 옷 보풀' 30대 여성 집중, C 65% — 비교 콘텐츠 효과적" },
       ],
       carholder: [
-        { rank: 1, sf_type: "A", axes_used: ["WHO", "PAIN"], WHO: "차량 통근자", WHEN: null, WHERE: null, PAIN: "기존 거치대가 주행중 흔들려서 불안", NEED: null, INTEREST: null, conversion_score: 96, insight: "WHO의 매일 운전 + PAIN의 흔들림 불안이 과속방지턱 테스트 영상으로 연결", data_evidence: "'차량 거치대 추천' 월 14,800회, 거래 의도(T) 81% — 구매 전환 최고 수준" },
-        { rank: 2, sf_type: "B", axes_used: ["PAIN"], WHO: null, WHEN: null, WHERE: null, PAIN: "폰이 무거워지면서 기존 거치대가 못 버팀", NEED: null, INTEREST: null, conversion_score: 93, insight: "무게 테스트(아이폰 Pro Max 240g) + 과속방지턱 진동 테스트로 기능 증명", data_evidence: "'차량 거치대 흔들림' 검색 증가, 정보 의도(I) 72% — 비교 영상 수요 높음" },
-        { rank: 3, sf_type: "C", axes_used: ["WHO", "WHEN", "WHERE"], WHO: "신차 구매자", WHEN: "차량 인테리어 세팅 시점", WHERE: "차 안 운전석", PAIN: null, NEED: null, INTEREST: null, conversion_score: 90, insight: "신차 꾸미기 라이프스타일 영상에서 자연스러운 배치 — 인테리어 감성 도달 확대", data_evidence: "'신차 필수템' 월 6,500회 검색, 네비 의도(N) 41% — 브랜드 노출 기회" },
+        { rank: 1, sf_type: "A", axes_used: ["WHO", "PAIN"], WHO: "차량 통근자", WHEN: null, WHERE: null, PAIN: "기존 거치대가 주행중 흔들려서 불안", NEED: null, INTEREST: null, conversion_score: 96, insight: "WHO의 매일 운전 + PAIN의 흔들림 불안이 과속방지턱 테스트 영상으로 연결", data_evidence: "🟢 검색: '차량 거치대 추천' 월 14,800회, T 81% | VOC: '과속방지턱에서도 안 흔들림' 기능 증명 리뷰 최다" },
+        { rank: 2, sf_type: "B", axes_used: ["PAIN"], WHO: null, WHEN: null, WHERE: null, PAIN: "폰이 무거워지면서 기존 거치대가 못 버팀", NEED: null, INTEREST: null, conversion_score: 93, insight: "무게 테스트(아이폰 Pro Max 240g) + 과속방지턱 진동 테스트로 기능 증명", data_evidence: "🟡 검색: '차량 거치대 흔들림' 검색 증가, I 72% — 비교 영상 수요 높음" },
+        { rank: 3, sf_type: "C", axes_used: ["WHO", "WHEN", "WHERE"], WHO: "신차 구매자", WHEN: "차량 인테리어 세팅 시점", WHERE: "차 안 운전석", PAIN: null, NEED: null, INTEREST: null, conversion_score: 90, insight: "신차 꾸미기 라이프스타일 영상에서 자연스러운 배치 — 인테리어 감성 도달 확대", data_evidence: "🟢 검색: '신차 필수템' 월 6,500회, N 41% | VOC: '디자인이 깔끔해서 인테리어에 안 어울리는 문제 해결'" },
+      ],
+      ringholder: [
+        { rank: 1, sf_type: "A", axes_used: ["WHO", "PAIN"], WHO: "폰 자주 떨어뜨리는 사람", WHEN: null, WHERE: null, PAIN: "폰 자꾸 떨어뜨려서 액정 깨질까 불안", NEED: null, INTEREST: null, conversion_score: 94, insight: "WHO의 불안 + PAIN의 낙하 공포가 마그네틱 그립 안정감으로 직결", data_evidence: "🟢 검색: '폰 그립' 월 4,200회, C 68% | VOC: '스트랩이 안정감 있다' 그립감 만족 리뷰" },
+        { rank: 2, sf_type: "B", axes_used: ["PAIN", "NEED"], WHO: null, WHEN: null, WHERE: null, PAIN: "거울 따로 들고 다니기 귀찮음", NEED: "올인원 편의성", INTEREST: null, conversion_score: 91, insight: "3in1 기능(홀더+거울+스트랩) 전환 시연으로 신뢰도 증명", data_evidence: "🟢 검색: '폰 링홀더 거울' I 75% | VOC: '거울이 생각보다 유용' 예상 밖 만족 리뷰 다수" },
+        { rank: 3, sf_type: "C", axes_used: ["WHO", "WHEN", "WHERE"], WHO: "셀카 좋아하는 MZ세대", WHEN: "외출 준비 거울 필요할 때", WHERE: "카페에서 영상 시청", PAIN: null, NEED: null, INTEREST: null, conversion_score: 88, insight: "카페 라이프스타일 장면에서 거치대+거울 활용 — MZ 공감 도달 확대", data_evidence: "🟡 VOC: '커플 매칭으로 2개 샀다' — 커플템 포지셔닝 유효" },
+      ],
+      laptop: [
+        { rank: 1, sf_type: "A", axes_used: ["WHO", "PAIN"], WHO: "목/어깨 통증 직장인", WHEN: null, WHERE: null, PAIN: "노트북 자세 때문에 목/어깨 통증 심해짐", NEED: null, INTEREST: null, conversion_score: 95, insight: "WHO의 통증 고민 + PAIN의 자세 문제가 인체공학 각도 솔루션으로 직결", data_evidence: "🟢 검색: '노트북 거치대 추천' 월 9,900회, C 71% | VOC: '자세가 확실히 편해짐' 인체공학 체감 후기" },
+        { rank: 2, sf_type: "B", axes_used: ["PAIN", "NEED"], WHO: null, WHEN: null, WHERE: null, PAIN: "휴대할 수 있는 거치대가 없음", NEED: "가벼운 휴대성", INTEREST: null, conversion_score: 92, insight: "74g 무게 저울 측정 + 지갑 크기 비교로 기능 증명 — 수치가 신뢰 트리거", data_evidence: "🟢 검색: '노트북 거치대 휴대' I 80% | VOC: '74g이 진짜 가볍다' 저울 인증 리뷰 다수" },
+        { rank: 3, sf_type: "C", axes_used: ["WHO", "WHEN", "WHERE"], WHO: "카페 작업족 노마드", WHEN: "카페 작업 시", WHERE: "카페 작업 공간", PAIN: null, NEED: null, INTEREST: null, conversion_score: 89, insight: "카페 작업 라이프스타일 장면에서 자연스러운 배치 — 노마드 공감 확대", data_evidence: "🟢 검색: '카페 노트북' 월 5,100회 | VOC: '카페에서 꺼내면 사람들이 물어봄' 자연 바이럴 후기" },
+      ],
+      multitap: [
+        { rank: 1, sf_type: "A", axes_used: ["WHO", "PAIN"], WHO: "자취 1년차 사회초년생", WHEN: null, WHERE: null, PAIN: "콘센트가 항상 부족해서 스트레스", NEED: null, INTEREST: null, conversion_score: 93, insight: "WHO의 자취 시작 + PAIN의 콘센트 부족이 큐브 올인원 솔루션으로 연결", data_evidence: "🟢 검색: '멀티탭 추천' 월 18,100회, C 65% | VOC: 'USB 충전이 되니 충전기 따로 안 사도 됨' 올인원 만족" },
+        { rank: 2, sf_type: "B", axes_used: ["PAIN", "NEED"], WHO: null, WHEN: null, WHERE: null, PAIN: "멀티탭 선이 지저분함", NEED: "공간 효율 극대화", INTEREST: null, conversion_score: 90, insight: "일반 멀티탭 vs 큐브 공간 비교로 기능 증명 — 깔끔함이 신뢰 트리거", data_evidence: "🟢 검색: '멀티탭 정리' I 78% | VOC: '큐브 디자인이 깔끔해서 인테리어에 안 튀어'" },
+        { rank: 3, sf_type: "C", axes_used: ["WHO", "WHEN", "WHERE"], WHO: "이사 준비중인 신혼부부", WHEN: "이사 시즌 3~4월", WHERE: "거실 TV 뒤", PAIN: null, NEED: null, INTEREST: null, conversion_score: 87, insight: "새 집 꾸미기 라이프스타일 장면에서 자연스러운 배치 — 신혼부부 공감 확대", data_evidence: "🟡 검색: '이사 필수템' 3~4월 검색량 +120%, T 55% — 시즌 타겟 유효" },
+      ],
+      adapter: [
+        { rank: 1, sf_type: "A", axes_used: ["WHO", "PAIN"], WHO: "해외여행 초심자", WHEN: null, WHERE: null, PAIN: "해외에서 충전기 안 맞아서 당황", NEED: null, INTEREST: null, conversion_score: 95, insight: "WHO의 여행 불안 + PAIN의 충전 문제가 200개국 호환 솔루션으로 직결", data_evidence: "🟢 검색: '해외 여행 어댑터' 월 12,400회, T 73% | VOC: '200개국 호환이 진짜인지 유럽에서 확인' 해외 인증 리뷰" },
+        { rank: 2, sf_type: "B", axes_used: ["PAIN", "NEED"], WHO: null, WHEN: null, WHERE: null, PAIN: "어댑터 여러 개 챙기기 번거로움", NEED: "짐 줄이기", INTEREST: null, conversion_score: 92, insight: "어댑터 3개 vs 올인원 1개 비교 시연으로 기능 증명 — 짐 절약 수치화", data_evidence: "🟢 검색: '여행 충전기 올인원' I 82% | VOC: '가족 4명 디바이스 동시 충전 성공' 실증 리뷰" },
+        { rank: 3, sf_type: "C", axes_used: ["WHO", "WHEN", "WHERE"], WHO: "가족 해외여행 계획자", WHEN: "여름 휴가 준비기", WHERE: "해외여행 호텔방", PAIN: null, NEED: null, INTEREST: null, conversion_score: 89, insight: "가족 여행 준비 라이프스타일 장면에서 자연스러운 배치 — 가족 공감 확대", data_evidence: "🟡 검색: '여름 해외여행 필수템' 6~7월 검색량 급증, C 61% — 시즌 타겟 유효" },
+      ],
+      cardwallet: [
+        { rank: 1, sf_type: "A", axes_used: ["WHO", "PAIN"], WHO: "미니멀리스트", WHEN: null, WHERE: null, PAIN: "지갑 따로 들고 다니기 귀찮음", NEED: null, INTEREST: null, conversion_score: 94, insight: "WHO의 미니멀 지향 + PAIN의 지갑 번거로움이 3in1 올인원 솔루션으로 직결", data_evidence: "🟢 검색: '맥세이프 카드지갑' 월 6,800회, C 70% | VOC: '카드 3장 넣어도 넉넉' 수납력 만족 리뷰" },
+        { rank: 2, sf_type: "B", axes_used: ["PAIN", "NEED"], WHO: null, WHEN: null, WHERE: null, PAIN: "선물 뭘 사야 할지 모름", NEED: "선물 센스 인정", INTEREST: null, conversion_score: 91, insight: "3in1 기능 시연 + 프리미엄 가죽 질감 → 가격 대비 가치 증명", data_evidence: "🟢 검색: '폰 악세서리 선물' C 75% | VOC: '부모님 선물로 드렸더니 좋아하셨다' 선물용 구매 경로 확인" },
+        { rank: 3, sf_type: "C", axes_used: ["WHO", "WHEN", "WHERE"], WHO: "아이폰 유저 감성파", WHEN: "새 폰 구매 직후", WHERE: "카페에서 영상 시청", PAIN: null, NEED: null, INTEREST: null, conversion_score: 88, insight: "새 폰 꾸미기 라이프스타일 장면에서 자연스러운 배치 — 감성 도달 확대", data_evidence: "🟡 VOC: '가죽 질감이 가격 대비 고급스럽다' 프리미엄 감성 소구 유효" },
       ],
     }
+    console.log(`[Fallback] 제품 ID: ${product.id}, fallback 데이터 ${fallbacks[product.id] ? '있음' : '없음 → clenser 폴백'}`)
     return fallbacks[product.id] || fallbacks.clenser
   }
 
