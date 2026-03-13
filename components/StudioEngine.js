@@ -57,12 +57,10 @@ export default function StudioEngine() {
   const [activeScene, setActiveScene] = useState(0)
   const [videoUrl, setVideoUrl] = useState(null)
   const [generating, setGenerating] = useState(false)
-  const [assetErrors, setAssetErrors] = useState(null) // { scene_no: error_message }
-  const [sceneFiles, setSceneFiles] = useState({}) // { scene_no: { file, previewUrl, ... } }
-  const [dragOverScene, setDragOverScene] = useState(null)
-  const sceneFileInputRefs = useRef({})
-  // 제품 소스 이미지 (제품 & 설정 탭)
-  const [sourceFiles, setSourceFiles] = useState([]) // [{ file, name, size, previewUrl }, ...]
+  const [assetErrors, setAssetErrors] = useState(null)
+
+  // 제품 소스 이미지 (통합 업로드)
+  const [sourceFiles, setSourceFiles] = useState([])
   const [dragOver, setDragOver] = useState(false)
   const fileInputRef = useRef(null)
 
@@ -75,7 +73,6 @@ export default function StudioEngine() {
         if (data.product) setProduct(data.product)
         if (data.context) setContext(data.context)
         if (data.ideas) setIdeas(data.ideas)
-        // 플랫폼 자동 추론
         if (data.platform === 'youtube') setPlatform('shorts')
         if (data.platform === 'instagram') setPlatform('reels')
       }
@@ -109,39 +106,7 @@ export default function StudioEngine() {
     })
   }, [])
 
-  // ─── 씬별 소스 파일 처리 ───
-  const handleSceneFile = useCallback((sceneNo, files) => {
-    const file = files[0]
-    if (!file) return
-    const isImage = file.type.startsWith('image/')
-    if (!isImage || file.size > 10 * 1024 * 1024) return
-
-    setSceneFiles(prev => {
-      const old = prev[sceneNo]
-      if (old?.previewUrl) URL.revokeObjectURL(old.previewUrl)
-      return {
-        ...prev,
-        [sceneNo]: {
-          file,
-          name: file.name,
-          size: file.size,
-          previewUrl: URL.createObjectURL(file),
-        },
-      }
-    })
-  }, [])
-
-  const removeSceneFile = useCallback((sceneNo) => {
-    setSceneFiles(prev => {
-      const old = prev[sceneNo]
-      if (old?.previewUrl) URL.revokeObjectURL(old.previewUrl)
-      const next = { ...prev }
-      delete next[sceneNo]
-      return next
-    })
-  }, [])
-
-  // ─── 스토리보드 생성 ───
+  // ─── 스토리보드 생성 (소스 정보 포함) ───
   const handleGenerateStoryboard = useCallback(async () => {
     if (!product) {
       setError('제품 정보가 없습니다. Discovery Engine에서 제품을 선택해주세요.')
@@ -153,6 +118,13 @@ export default function StudioEngine() {
     setProgress(20)
 
     try {
+      // 업로드된 소스 파일 정보를 API에 전달 (파일 내용이 아닌 메타데이터만)
+      const uploadedSources = sourceFiles.map((sf, i) => ({
+        index: i,
+        name: sf.name,
+        type: sf.type,
+      }))
+
       const res = await fetch('/api/storyboard', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -165,6 +137,7 @@ export default function StudioEngine() {
           targetDuration,
           includeHuman,
           toneAndManner,
+          uploadedSources,
         }),
       })
 
@@ -180,7 +153,7 @@ export default function StudioEngine() {
     } finally {
       setLoading(false)
     }
-  }, [product, context, ideas, videoStyle, platform, targetDuration, includeHuman, toneAndManner])
+  }, [product, context, ideas, videoStyle, platform, targetDuration, includeHuman, toneAndManner, sourceFiles])
 
   // ─── 파일 → base64 변환 헬퍼 ───
   const fileToDataUrl = useCallback((file) => {
@@ -192,6 +165,19 @@ export default function StudioEngine() {
     })
   }, [])
 
+  // ─── 씬의 소스 매칭 변경 ───
+  const updateSceneMatch = useCallback((sceneNo, newSourceIdx) => {
+    if (!storyboard) return
+    setStoryboard(prev => ({
+      ...prev,
+      scenes: prev.scenes.map(s =>
+        s.scene_no === sceneNo
+          ? { ...s, matched_source: newSourceIdx === 'null' ? null : Number(newSourceIdx) }
+          : s
+      ),
+    }))
+  }, [storyboard])
+
   // ─── 영상 생성 ───
   const handleGenerateVideo = useCallback(async () => {
     if (!storyboard) return
@@ -200,7 +186,6 @@ export default function StudioEngine() {
     setStage('AI 영상 클립 생성 중... (2~4분 소요)')
     setProgress(10)
 
-    // 진행 표시 시뮬레이션
     const stages = [
       { p: 30, msg: 'fal.ai에서 AI 영상 클립 생성 중...' },
       { p: 60, msg: '에셋 생성 완료, 나레이션 생성 중...' },
@@ -216,40 +201,20 @@ export default function StudioEngine() {
     }, 30000)
 
     try {
-      // 씬별 업로드된 소스 파일을 base64 Data URL로 변환
-      const sceneSources = await Promise.all(
-        Object.entries(sceneFiles).map(async ([sceneNo, sf]) => ({
-          key: `source_scene_${sceneNo}`,
-          sceneNo: Number(sceneNo),
-          type: 'image',
-          description: sf.name,
-          dataUrl: await fileToDataUrl(sf.file),
-        }))
-      )
-
-      // 제품 소스 이미지도 base64로 변환 (reference_image로 활용)
-      const productSources = await Promise.all(
+      // 제품 소스 이미지를 base64로 변환하여 전달
+      const imagesPayload = await Promise.all(
         sourceFiles.map(async (sf, i) => ({
-          key: `product_source_${i}`,
-          type: sf.type,
+          key: `source_${i}`,
           description: sf.name,
-          dataUrl: await fileToDataUrl(sf.file),
+          url: await fileToDataUrl(sf.file),
         }))
       )
-
-      // images로 제품 소스 전달 (기존 images 필드)
-      const imagesPayload = productSources.map(ps => ({
-        key: ps.key,
-        description: ps.description,
-        url: ps.dataUrl,
-      }))
 
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           storyboard,
-          sources: sceneSources,
           images: imagesPayload,
         }),
       })
@@ -269,7 +234,7 @@ export default function StudioEngine() {
     } finally {
       setGenerating(false)
     }
-  }, [storyboard, sceneFiles, sourceFiles, fileToDataUrl])
+  }, [storyboard, sourceFiles, fileToDataUrl])
 
   // ─── SUB COMPONENTS ───
   function ContextTag({ dim, value }) {
@@ -290,7 +255,7 @@ export default function StudioEngine() {
   function renderInput() {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-        {/* 제품 + 맥락 요약 (Discovery Engine에서 받아온 데이터) */}
+        {/* 제품 + 맥락 요약 */}
         {product ? (
           <div style={{ background: C.card, border: `1px solid ${C.accent}44`, borderRadius: 14, padding: 20 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
@@ -306,8 +271,6 @@ export default function StudioEngine() {
                 Discovery Engine 연동
               </div>
             </div>
-
-            {/* 강점 */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 14 }}>
               {product.strengths?.slice(0, 5).map((s, i) => (
                 <span key={i} style={{ fontSize: 10, padding: '3px 8px', background: `${C.accent}14`, color: C.accent, borderRadius: 10, border: `1px solid ${C.accent}22` }}>
@@ -315,8 +278,6 @@ export default function StudioEngine() {
                 </span>
               ))}
             </div>
-
-            {/* 맥락 */}
             {context && (
               <div>
                 <span style={{ fontSize: 10, fontWeight: 700, color: C.textDim, letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>적용 맥락</span>
@@ -341,7 +302,7 @@ export default function StudioEngine() {
           </div>
         )}
 
-        {/* 숏폼 아이디어 (있으면 표시) */}
+        {/* 숏폼 아이디어 */}
         {ideas && (
           <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 18 }}>
             <span style={{ fontSize: 10, fontWeight: 700, color: C.orange, letterSpacing: '0.06em', display: 'block', marginBottom: 10 }}>
@@ -368,18 +329,18 @@ export default function StudioEngine() {
         )}
 
         {/* 제품 소스 이미지 업로드 */}
-        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 20 }}>
+        <div style={{ background: C.card, border: `1px solid ${sourceFiles.length > 0 ? C.accent : C.border}44`, borderRadius: 14, padding: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
             <h3 style={{ fontSize: 14, fontWeight: 700, color: C.text, margin: 0 }}>📷 제품 소스 이미지</h3>
             {sourceFiles.length > 0 && (
-              <span style={{ fontSize: 11, color: C.accent, fontWeight: 600 }}>{sourceFiles.length}개 업로드</span>
+              <span style={{ fontSize: 11, color: C.accent, fontWeight: 600 }}>{sourceFiles.length}장 업로드</span>
             )}
           </div>
           <p style={{ fontSize: 11, color: C.textMuted, marginBottom: 12, lineHeight: 1.5 }}>
-            제품 사진/영상을 업로드하면 AI 영상의 참조 이미지로 사용됩니다. 더 자연스러운 결과를 얻을 수 있습니다.
+            제품 사진/영상을 3~5장 업로드하면, AI가 스토리보드를 보고 <strong style={{ color: C.accent }}>각 씬에 가장 적합한 소스를 자동 매칭</strong>합니다.
           </p>
 
-          {/* 업로드된 파일 목록 */}
+          {/* 업로드된 파일 그리드 */}
           {sourceFiles.length > 0 && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 8, marginBottom: 12 }}>
               {sourceFiles.map((sf, i) => (
@@ -387,33 +348,26 @@ export default function StudioEngine() {
                   position: 'relative', borderRadius: 10, overflow: 'hidden',
                   border: `1px solid ${C.accent}33`, background: C.surface,
                 }}>
-                  <img
-                    src={sf.previewUrl}
-                    alt={sf.name}
-                    style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }}
-                  />
-                  <button
-                    onClick={() => removeSourceFile(i)}
-                    style={{
-                      position: 'absolute', top: 4, right: 4,
-                      width: 20, height: 20, borderRadius: '50%',
-                      background: 'rgba(0,0,0,0.7)', border: 'none', color: '#fff',
-                      cursor: 'pointer', fontSize: 11,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}
-                  >×</button>
+                  <img src={sf.previewUrl} alt={sf.name} style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
+                  <button onClick={() => removeSourceFile(i)} style={{
+                    position: 'absolute', top: 4, right: 4, width: 20, height: 20, borderRadius: '50%',
+                    background: 'rgba(0,0,0,0.7)', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 11,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>×</button>
                   <div style={{
                     position: 'absolute', bottom: 0, left: 0, right: 0,
-                    background: 'rgba(0,0,0,0.6)', padding: '3px 6px',
-                    fontSize: 9, color: '#fff', overflow: 'hidden',
-                    textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  }}>{sf.name}</div>
+                    background: 'rgba(0,0,0,0.7)', padding: '4px 6px',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  }}>
+                    <span style={{ fontSize: 8, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{sf.name}</span>
+                    <span style={{ fontSize: 9, color: C.accent, fontWeight: 700, marginLeft: 4, flexShrink: 0 }}>#{i}</span>
+                  </div>
                 </div>
               ))}
             </div>
           )}
 
-          {/* 드래그 앤 드롭 업로드 영역 */}
+          {/* 드래그 앤 드롭 */}
           <div
             onClick={() => fileInputRef.current?.click()}
             onDragOver={e => { e.preventDefault(); setDragOver(true) }}
@@ -426,14 +380,8 @@ export default function StudioEngine() {
               background: dragOver ? `${C.accent}08` : 'transparent',
             }}
           >
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*,video/*"
-              multiple
-              style={{ display: 'none' }}
-              onChange={e => { handleSourceFiles(e.target.files); e.target.value = '' }}
-            />
+            <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple style={{ display: 'none' }}
+              onChange={e => { handleSourceFiles(e.target.files); e.target.value = '' }} />
             <div style={{ fontSize: 24, opacity: 0.4, marginBottom: 6 }}>📷</div>
             <div style={{ fontSize: 12, color: C.textMuted, fontWeight: 600 }}>클릭 또는 드래그하여 업로드</div>
             <div style={{ fontSize: 10, color: C.textDim, marginTop: 4 }}>이미지/영상 여러 장 가능 · 20MB 이내 · 선택사항</div>
@@ -443,8 +391,6 @@ export default function StudioEngine() {
         {/* 영상 설정 */}
         <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 20 }}>
           <h3 style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 16 }}>영상 설정</h3>
-
-          {/* 스타일 */}
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: C.textMuted, marginBottom: 8, letterSpacing: '0.04em' }}>영상 스타일</label>
             <div style={{ display: 'flex', gap: 8 }}>
@@ -454,14 +400,10 @@ export default function StudioEngine() {
                   border: videoStyle === s.id ? `1.5px solid ${C.accent}` : `1px solid ${C.border}`,
                   background: videoStyle === s.id ? C.accentDim : C.surface,
                   color: videoStyle === s.id ? C.accent : C.textMuted,
-                }}>
-                  {s.icon} {s.label}
-                </button>
+                }}>{s.icon} {s.label}</button>
               ))}
             </div>
           </div>
-
-          {/* 플랫폼 */}
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: C.textMuted, marginBottom: 8, letterSpacing: '0.04em' }}>플랫폼</label>
             <div style={{ display: 'flex', gap: 8 }}>
@@ -471,14 +413,10 @@ export default function StudioEngine() {
                   border: platform === p.id ? `1.5px solid ${p.color}` : `1px solid ${C.border}`,
                   background: platform === p.id ? `${p.color}18` : C.surface,
                   color: platform === p.id ? p.color : C.textMuted,
-                }}>
-                  {p.label}
-                </button>
+                }}>{p.label}</button>
               ))}
             </div>
           </div>
-
-          {/* 길이 */}
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: C.textMuted, marginBottom: 8, letterSpacing: '0.04em' }}>
               목표 길이: {targetDuration}초
@@ -490,14 +428,10 @@ export default function StudioEngine() {
                   border: targetDuration === d ? `1.5px solid ${C.accent}` : `1px solid ${C.border}`,
                   background: targetDuration === d ? C.accentDim : C.surface,
                   color: targetDuration === d ? C.accent : C.textMuted,
-                }}>
-                  {d}s
-                </button>
+                }}>{d}s</button>
               ))}
             </div>
           </div>
-
-          {/* 사람 등장 */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
             <span style={{ fontSize: 12, fontWeight: 600, color: C.textMuted }}>사람 등장 (손/턱 아래만)</span>
             <button onClick={() => setIncludeHuman(!includeHuman)} style={{
@@ -507,26 +441,18 @@ export default function StudioEngine() {
               <div style={{ width: 18, height: 18, borderRadius: '50%', background: '#fff', position: 'absolute', top: 3, left: includeHuman ? 23 : 3, transition: 'left 0.2s' }} />
             </button>
           </div>
-
-          {/* 톤앤매너 */}
           <div>
             <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: C.textMuted, marginBottom: 8, letterSpacing: '0.04em' }}>톤 & 매너</label>
-            <input
-              value={toneAndManner}
-              onChange={e => setToneAndManner(e.target.value)}
-              style={{
-                width: '100%', padding: '10px 14px', borderRadius: 8,
-                background: C.surface, border: `1px solid ${C.border}`, color: C.text,
-                fontSize: 13, outline: 'none', fontFamily: 'inherit',
-              }}
-            />
+            <input value={toneAndManner} onChange={e => setToneAndManner(e.target.value)} style={{
+              width: '100%', padding: '10px 14px', borderRadius: 8,
+              background: C.surface, border: `1px solid ${C.border}`, color: C.text,
+              fontSize: 13, outline: 'none', fontFamily: 'inherit',
+            }} />
           </div>
         </div>
 
         {/* 생성 버튼 */}
-        <button
-          onClick={handleGenerateStoryboard}
-          disabled={loading || !product}
+        <button onClick={handleGenerateStoryboard} disabled={loading || !product}
           className={loading || !product ? '' : 'pulse-glow'}
           style={{
             width: '100%', padding: 16, borderRadius: 12, border: 'none',
@@ -537,7 +463,7 @@ export default function StudioEngine() {
             transition: 'all 0.3s ease',
           }}
         >
-          {loading ? '◌ 스토리보드 생성 중...' : '⚡ AI 스토리보드 생성 (~$0.01)'}
+          {loading ? '◌ 스토리보드 생성 중...' : `⚡ AI 스토리보드 생성 (~$0.01)${sourceFiles.length > 0 ? ` · 소스 ${sourceFiles.length}장 자동 매칭` : ''}`}
         </button>
       </div>
     )
@@ -555,6 +481,7 @@ export default function StudioEngine() {
     }
 
     const scene = storyboard.scenes?.[activeScene]
+    const matchedCount = storyboard.scenes?.filter(s => s.matched_source !== null && s.matched_source !== undefined).length || 0
 
     return (
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20 }}>
@@ -566,25 +493,47 @@ export default function StudioEngine() {
             <span style={{ fontSize: 13, color: C.text, lineHeight: 1.5 }}>{storyboard.hook_strategy}</span>
           </div>
 
+          {/* 소스 매칭 요약 */}
+          {sourceFiles.length > 0 && (
+            <div style={{ background: C.card, border: `1px solid ${C.accent}33`, borderRadius: 12, padding: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: C.accent, letterSpacing: '0.06em' }}>🤖 AI 소스 자동 매칭</span>
+                <span style={{ fontSize: 10, color: C.textMuted }}>{matchedCount}/{storyboard.scenes?.length}개 씬 매칭</span>
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {sourceFiles.map((sf, i) => {
+                  const usedBy = storyboard.scenes?.filter(s => s.matched_source === i).length || 0
+                  return (
+                    <div key={i} style={{
+                      display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px',
+                      background: usedBy > 0 ? `${C.accent}12` : C.surface,
+                      borderRadius: 8, border: `1px solid ${usedBy > 0 ? C.accent : C.border}30`,
+                    }}>
+                      <img src={sf.previewUrl} alt="" style={{ width: 24, height: 24, borderRadius: 4, objectFit: 'cover' }} />
+                      <span style={{ fontSize: 10, color: usedBy > 0 ? C.accent : C.textDim, fontWeight: 600 }}>
+                        #{i} {usedBy > 0 ? `→ ${usedBy}씬` : '미사용'}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Scenes */}
           <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
               <h3 style={{ fontSize: 13, fontWeight: 700, color: C.text, margin: 0 }}>씬 구성</h3>
-              {storyboard.scenes?.some(s => s.source_guide) && (
-                <span style={{ fontSize: 10, color: C.orange, fontWeight: 600 }}>
-                  소스 {Object.keys(sceneFiles).length}/{storyboard.scenes.filter(s => s.source_guide).length}
-                </span>
-              )}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {storyboard.scenes?.map((s, i) => {
-                const hasUpload = sceneFiles[s.scene_no]
+                const hasMatch = s.matched_source !== null && s.matched_source !== undefined
+                const matchedFile = hasMatch ? sourceFiles[s.matched_source] : null
                 return (
                   <div key={i} style={{
                     background: C.surface, borderRadius: 10, overflow: 'hidden',
                     borderLeft: `3px solid ${TYPE_COLORS[s.type] || C.textDim}`,
-                    opacity: activeScene === i ? 1 : 0.75,
-                    transition: 'opacity 0.2s',
+                    opacity: activeScene === i ? 1 : 0.75, transition: 'opacity 0.2s',
                   }}>
                     {/* 씬 헤더 */}
                     <div onClick={() => setActiveScene(i)} style={{
@@ -609,64 +558,48 @@ export default function StudioEngine() {
                       <span style={{ fontSize: 11, color: C.textDim, fontFamily: 'monospace', flexShrink: 0 }}>{s.duration}s</span>
                     </div>
 
-                    {/* 씬별 소스 업로드 영역 (source_guide가 있는 씬만) */}
-                    {s.source_guide && (
-                      <div style={{ padding: '0 14px 10px 14px' }}>
-                        <div style={{ fontSize: 10, color: C.orange, fontWeight: 600, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <span style={{ fontSize: 12 }}>📷</span> {s.source_guide}
-                        </div>
-                        {hasUpload ? (
-                          <div style={{
-                            display: 'flex', alignItems: 'center', gap: 10,
-                            background: `${C.accent}0a`, border: `1px solid ${C.accent}33`,
-                            borderRadius: 8, padding: 8,
-                          }}>
-                            <img
-                              src={sceneFiles[s.scene_no].previewUrl}
-                              alt="uploaded"
-                              style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6 }}
-                            />
+                    {/* AI 소스 매칭 결과 */}
+                    <div style={{ padding: '0 14px 10px 14px' }}>
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px',
+                        background: hasMatch ? `${C.accent}08` : `${C.purple}08`,
+                        borderRadius: 8, border: `1px solid ${hasMatch ? C.accent : C.purple}20`,
+                      }}>
+                        {hasMatch && matchedFile ? (
+                          <>
+                            <img src={matchedFile.previewUrl} alt="" style={{ width: 32, height: 32, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }} />
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: 11, color: C.accent, fontWeight: 600 }}>업로드 완료</div>
-                              <div style={{ fontSize: 10, color: C.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {sceneFiles[s.scene_no].name}
+                              <div style={{ fontSize: 10, color: C.accent, fontWeight: 700 }}>소스 #{s.matched_source} 매칭</div>
+                              <div style={{ fontSize: 9, color: C.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {s.source_prompt?.slice(0, 60) || ''}
                               </div>
                             </div>
-                            <button
-                              onClick={() => removeSceneFile(s.scene_no)}
-                              style={{
-                                width: 22, height: 22, borderRadius: '50%', background: `${C.red}22`,
-                                border: 'none', color: C.red, cursor: 'pointer', fontSize: 12,
-                                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                              }}
-                            >×</button>
-                          </div>
+                          </>
                         ) : (
-                          <div
-                            onClick={() => sceneFileInputRefs.current[s.scene_no]?.click()}
-                            onDragOver={e => { e.preventDefault(); setDragOverScene(s.scene_no) }}
-                            onDragLeave={() => setDragOverScene(null)}
-                            onDrop={e => { e.preventDefault(); setDragOverScene(null); handleSceneFile(s.scene_no, e.dataTransfer.files) }}
-                            style={{
-                              border: `1.5px dashed ${dragOverScene === s.scene_no ? C.accent : C.border}`,
-                              borderRadius: 8, padding: '10px 12px', textAlign: 'center', cursor: 'pointer',
-                              background: dragOverScene === s.scene_no ? `${C.accent}08` : 'transparent',
-                              transition: 'all 0.2s',
-                            }}
-                          >
-                            <input
-                              ref={el => sceneFileInputRefs.current[s.scene_no] = el}
-                              type="file"
-                              accept="image/*"
-                              style={{ display: 'none' }}
-                              onChange={e => { handleSceneFile(s.scene_no, e.target.files); e.target.value = '' }}
-                            />
-                            <div style={{ fontSize: 11, color: C.textMuted }}>클릭 또는 드래그하여 업로드</div>
-                            <div style={{ fontSize: 9, color: C.textDim, marginTop: 2 }}>이미지 10MB 이내 · 선택사항</div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 10, color: C.purple, fontWeight: 700 }}>🤖 순수 AI 생성</div>
+                            <div style={{ fontSize: 9, color: C.textDim }}>소스 불필요 — AI가 장면을 생성합니다</div>
                           </div>
                         )}
+                        {/* 소스 변경 드롭다운 */}
+                        {sourceFiles.length > 0 && (
+                          <select
+                            value={hasMatch ? s.matched_source : 'null'}
+                            onChange={e => updateSceneMatch(s.scene_no, e.target.value)}
+                            style={{
+                              fontSize: 10, padding: '3px 6px', borderRadius: 6,
+                              background: C.bg, color: C.textMuted, border: `1px solid ${C.border}`,
+                              cursor: 'pointer', flexShrink: 0,
+                            }}
+                          >
+                            <option value="null">AI 생성</option>
+                            {sourceFiles.map((_, si) => (
+                              <option key={si} value={si}>소스 #{si}</option>
+                            ))}
+                          </select>
+                        )}
                       </div>
-                    )}
+                    </div>
                   </div>
                 )
               })}
@@ -677,9 +610,7 @@ export default function StudioEngine() {
           {storyboard.narration && (
             <div style={{ background: C.card, borderRadius: 12, padding: 14 }}>
               <span style={{ fontSize: 10, fontWeight: 700, color: C.green, letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>🎙 나레이션</span>
-              <p style={{ fontSize: 12, color: C.textMuted, lineHeight: 1.7, margin: 0 }}>
-                {storyboard.narration.full_script}
-              </p>
+              <p style={{ fontSize: 12, color: C.textMuted, lineHeight: 1.7, margin: 0 }}>{storyboard.narration.full_script}</p>
             </div>
           )}
 
@@ -689,9 +620,7 @@ export default function StudioEngine() {
               <div style={{ fontSize: 14, color: C.text, fontWeight: 600, marginBottom: 6 }}>{storyboard.metadata.title}</div>
               <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                 {storyboard.metadata.hashtags?.map((tag, i) => (
-                  <span key={i} style={{ padding: '2px 7px', background: `${C.purple}18`, borderRadius: 6, fontSize: 10, color: C.purple }}>
-                    {tag}
-                  </span>
+                  <span key={i} style={{ padding: '2px 7px', background: `${C.purple}18`, borderRadius: 6, fontSize: 10, color: C.purple }}>{tag}</span>
                 ))}
               </div>
             </div>
@@ -704,23 +633,16 @@ export default function StudioEngine() {
               <span style={{ color: C.green, fontWeight: 700 }}>${storyboard.estimated_cost?.toFixed?.(2) || '0.80'}</span>
               <span style={{ color: C.textDim, marginLeft: 8 }}>{storyboard.duration_target || targetDuration}초</span>
             </div>
-            <button onClick={() => { setStoryboard(null); setSceneFiles({}); setTab('input') }} style={{
+            <button onClick={() => { setStoryboard(null); setTab('input') }} style={{
               padding: '10px 20px', borderRadius: 8, border: `1px solid ${C.border}`,
               background: C.card, color: C.textMuted, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+            }}>↻ 재생성</button>
+            <button onClick={handleGenerateVideo} disabled={generating} style={{
+              padding: '10px 20px', borderRadius: 8, border: 'none',
+              background: generating ? C.border : C.green,
+              color: generating ? C.textDim : C.bg,
+              fontSize: 12, fontWeight: 700, cursor: generating ? 'not-allowed' : 'pointer',
             }}>
-              ↻ 재생성
-            </button>
-            <button
-              onClick={handleGenerateVideo}
-              disabled={generating}
-              style={{
-                padding: '10px 20px', borderRadius: 8, border: 'none',
-                background: generating ? C.border : C.green,
-                color: generating ? C.textDim : C.bg,
-                fontSize: 12, fontWeight: 700,
-                cursor: generating ? 'not-allowed' : 'pointer',
-              }}
-            >
               {generating ? '◌ 생성 중...' : '🎬 영상 생성 (~$0.80)'}
             </button>
           </div>
@@ -730,7 +652,6 @@ export default function StudioEngine() {
         {scene && (
           <div style={{ position: 'sticky', top: 20, alignSelf: 'start' }}>
             <div style={{ background: C.card, borderRadius: 14, overflow: 'hidden', border: `1px solid ${C.border}` }}>
-              {/* Preview area (9:16) */}
               <div style={{
                 aspectRatio: '9/16', maxHeight: 420, background: '#000',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative',
@@ -747,11 +668,14 @@ export default function StudioEngine() {
                     <div style={{
                       marginTop: 16, fontSize: scene.text_style === 'bold_center_white' ? 18 : 14,
                       fontWeight: 800, color: '#fff', textShadow: '0 2px 8px rgba(0,0,0,0.8)', lineHeight: 1.4,
-                    }}>
-                      {scene.text_overlay}
+                    }}>{scene.text_overlay}</div>
+                  )}
+                  {scene.source_prompt && (
+                    <div style={{ marginTop: 10, fontSize: 10, color: C.accent, lineHeight: 1.4, maxWidth: 220, margin: '10px auto 0', opacity: 0.8 }}>
+                      i2v: {scene.source_prompt.substring(0, 80)}...
                     </div>
                   )}
-                  {scene.prompt && (
+                  {scene.prompt && !scene.source_prompt && (
                     <div style={{ marginTop: 10, fontSize: 10, color: C.purple, lineHeight: 1.4, maxWidth: 220, margin: '10px auto 0', opacity: 0.7 }}>
                       {scene.prompt.substring(0, 100)}...
                     </div>
@@ -759,6 +683,13 @@ export default function StudioEngine() {
                   {scene.motion && (
                     <div style={{ marginTop: 8, fontSize: 10, color: C.accent, fontFamily: 'monospace', opacity: 0.6 }}>
                       motion: {scene.motion}
+                    </div>
+                  )}
+                  {/* 매칭된 소스 프리뷰 */}
+                  {scene.matched_source !== null && scene.matched_source !== undefined && sourceFiles[scene.matched_source] && (
+                    <div style={{ marginTop: 12, display: 'flex', justifyContent: 'center' }}>
+                      <img src={sourceFiles[scene.matched_source].previewUrl} alt="matched"
+                        style={{ width: 60, height: 60, borderRadius: 8, objectFit: 'cover', border: `2px solid ${C.accent}` }} />
                     </div>
                   )}
                 </div>
@@ -769,7 +700,6 @@ export default function StudioEngine() {
                   {scene.duration}s
                 </div>
               </div>
-
               {/* Timeline */}
               <div style={{ padding: '10px 12px', background: C.bg }}>
                 <div style={{ display: 'flex', gap: 2 }}>
@@ -834,9 +764,7 @@ export default function StudioEngine() {
               padding: '5px 12px', background: C.accentDim, borderRadius: 8,
               fontSize: 11, color: C.accent, fontWeight: 600, textDecoration: 'none',
               border: `1px solid ${C.accent}33`,
-            }}>
-              ← Discovery Engine
-            </Link>
+            }}>← Discovery Engine</Link>
           </div>
         </div>
       </header>
@@ -904,8 +832,6 @@ export default function StudioEngine() {
                 <p style={{ fontSize: 13, color: C.textMuted, marginBottom: 24 }}>
                   {storyboard?.metadata?.title || product?.name}
                 </p>
-
-                {/* 에셋 에러 경고 */}
                 {assetErrors && Object.keys(assetErrors).length > 0 && (
                   <div style={{
                     textAlign: 'left', marginBottom: 20, padding: 14,
@@ -922,34 +848,26 @@ export default function StudioEngine() {
                       </div>
                     ))}
                     <div style={{ fontSize: 10, color: C.textDim, marginTop: 8 }}>
-                      문제 씬은 정적 이미지로 대체되었습니다. 소스 이미지를 업로드하면 개선될 수 있습니다.
+                      문제 씬은 정적 이미지로 대체되었습니다.
                     </div>
                   </div>
                 )}
-
                 <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginBottom: 24 }}>
                   <div style={{ padding: '7px 14px', background: C.surface, borderRadius: 8, fontSize: 12 }}>
                     <span style={{ color: C.textDim }}>길이 </span>
                     <span style={{ color: C.text, fontWeight: 700 }}>{storyboard?.duration_target || targetDuration}초</span>
                   </div>
                 </div>
-                <a
-                  href={videoUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    display: 'inline-block', padding: '12px 28px', borderRadius: 10, border: 'none',
-                    background: `linear-gradient(135deg, ${C.purple}, ${C.accent})`, color: '#fff',
-                    fontSize: 14, fontWeight: 700, textDecoration: 'none',
-                  }}
-                >
-                  📥 영상 다운로드
-                </a>
+                <a href={videoUrl} target="_blank" rel="noopener noreferrer" style={{
+                  display: 'inline-block', padding: '12px 28px', borderRadius: 10, border: 'none',
+                  background: `linear-gradient(135deg, ${C.purple}, ${C.accent})`, color: '#fff',
+                  fontSize: 14, fontWeight: 700, textDecoration: 'none',
+                }}>📥 영상 다운로드</a>
               </>
             ) : (
               <>
                 <div style={{ fontSize: 48, opacity: 0.3, marginBottom: 12 }}>🎬</div>
-                <p style={{ fontSize: 14, color: C.textMuted }}>스토리보드 탭에서 "영상 생성" 버튼을 눌러주세요</p>
+                <p style={{ fontSize: 14, color: C.textMuted }}>스토리보드 탭에서 &quot;영상 생성&quot; 버튼을 눌러주세요</p>
               </>
             )}
           </div>

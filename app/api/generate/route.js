@@ -13,7 +13,7 @@ export const maxDuration = 300 // 5분 타임아웃
 export async function POST(request) {
   try {
     const body = await request.json()
-    const { storyboard, images, sources } = body
+    const { storyboard, images } = body
 
     if (!storyboard || !storyboard.scenes?.length) {
       return NextResponse.json(
@@ -33,29 +33,30 @@ export async function POST(request) {
       )
     }
 
-    // 씬별 업로드 소스를 이미지 맵으로 변환
-    // sources: [{ key: "source_scene_2", sceneNo: 2, dataUrl: "..." }, ...]
+    // 제품 소스 이미지를 이미지 맵으로 변환
+    // images: [{ key: "source_0", description: "파일명", url: dataUrl }, ...]
     const allImages = []
-    if (sources?.length) {
-      sources.forEach(s => {
-        if (s.dataUrl) {
-          // 씬별 소스: key를 scene의 source 필드와 매칭
-          allImages.push({ key: s.key, description: s.description || '', url: s.dataUrl })
-          // 해당 씬의 source 필드를 이 key로 업데이트
-          if (s.sceneNo && storyboard.scenes) {
-            const scene = storyboard.scenes.find(sc => sc.scene_no === s.sceneNo)
-            if (scene) {
-              scene.source = s.key
-              // ai_video 씬이면 reference_image도 설정
-              if (scene.type === 'ai_video') scene.reference_image = s.key
-            }
-          }
-        }
-      })
-    }
     if (images?.length) {
       images.forEach(img => {
         if (img.url) allImages.push(img)
+      })
+    }
+
+    // 각 씬의 matched_source 인덱스를 실제 이미지 키로 매핑
+    // matched_source: 0 → reference_image/source: "source_0"
+    if (storyboard.scenes) {
+      storyboard.scenes.forEach(scene => {
+        if (scene.matched_source !== null && scene.matched_source !== undefined) {
+          const sourceKey = `source_${scene.matched_source}`
+          // ai_video 씬: reference_image 설정
+          if (scene.type === 'ai_video') {
+            scene.reference_image = sourceKey
+          }
+          // motion_image 씬: source 설정
+          if (scene.type === 'motion_image') {
+            scene.source = sourceKey
+          }
+        }
       })
     }
 

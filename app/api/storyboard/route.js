@@ -3,6 +3,7 @@
  *
  * Discovery Engine 맥락 데이터 + 숏폼 아이디어를 기반으로
  * AI 영상 스토리보드 JSON을 생성합니다.
+ * 업로드된 소스 이미지 정보를 받아 AI가 각 씬에 자동 매칭합니다.
  *
  * 비용: ~$0.01 (Claude API만 호출)
  */
@@ -12,7 +13,7 @@ import { NextResponse } from 'next/server'
 export async function POST(request) {
   try {
     const body = await request.json()
-    const { product, context, ideas, videoStyle, platform, targetDuration, includeHuman, toneAndManner } = body
+    const { product, context, ideas, videoStyle, platform, targetDuration, includeHuman, toneAndManner, uploadedSources } = body
 
     const apiKey = process.env.ANTHROPIC_API_KEY
     if (!apiKey) {
@@ -50,6 +51,22 @@ export async function POST(request) {
 
     const strengthsText = product.strengths?.map(s => `${s.tag} (시각: ${s.visual})`).join(', ') || ''
 
+    // 업로드된 소스 이미지 정보 블록
+    const hasUploads = uploadedSources?.length > 0
+    const sourceListBlock = hasUploads
+      ? `\n══ 업로드된 제품 소스 이미지 (${uploadedSources.length}장) ══
+${uploadedSources.map((s, i) => `  source_${i}: "${s.name}" (${s.type})`).join('\n')}
+
+중요: 각 씬마다 위 소스 중 가장 적합한 이미지를 자동으로 매칭하세요.
+- matched_source: 해당 씬에 사용할 소스 인덱스 (예: 0, 1, 2) 또는 null (AI 생성)
+- source_prompt: matched_source가 있을 때, 해당 이미지를 kling image-to-video의 참조 이미지로 사용할 때의 영어 프롬프트
+  예: "This cleanser being held near bathroom sink, morning light, subtle motion"
+- source_prompt는 반드시 영어로, 해당 소스 이미지의 특성 + 원하는 모션/장면을 구체적으로 설명
+- 모든 소스를 사용할 필요 없음. 스토리에 적합한 소스만 매칭
+- 소스가 필요 없는 씬은 matched_source: null, source_prompt: null`
+      : `\n소스 이미지 없음 — 모든 씬을 AI 생성 또는 generated_image로 처리하세요.
+모든 씬의 matched_source: null, source_prompt: null`
+
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -73,16 +90,16 @@ export async function POST(request) {
 - 발견 커머스 맥락(WHO, WHERE, WHEN, PAIN)을 영상에 자연스럽게 반영
 
 씬 타입:
-- ai_video: model(kling_2.5_turbo_pro/wan_2.2), prompt(영어), reference_image(업로드 소스 key 가능), camera_movement
-- motion_image: source(업로드된 소스 key, 예: source_1), motion(slow_zoom_in/slow_zoom_out/pan_left/pan_right/float_up/scale_up_center/ken_burns/shake_subtle)
+- ai_video: model(kling_2.5_turbo_pro/wan_2.2), prompt(영어), reference_image(source key), camera_movement
+- motion_image: source(source key), motion(slow_zoom_in/slow_zoom_out/pan_left/pan_right/float_up/scale_up_center/ken_burns/shake_subtle)
 - generated_image: generation_prompt(영어)
 
-소스 활용 원칙:
-- motion_image 씬: source_guide에 필요한 이미지를 구체적으로 명시 (예: "제품 정면 사진", "12종 컬러 라인업 이미지")
-- ai_video 씬: reference_image가 필요하면 source_guide에 어떤 참조 이미지가 효과적인지 명시
-- generated_image 씬: AI가 생성하므로 source_guide = null
-- source_guide는 사용자에게 "이 씬에 어떤 소스를 업로드해야 하는지" 안내하는 텍스트
-- motion_image는 반드시 source_guide를 포함해야 함 (사용자가 업로드할 이미지를 안내)
+소스 자동 매칭:
+- 사용자가 업로드한 제품 소스 이미지 목록이 주어집니다.
+- 각 씬마다 가장 적합한 소스를 자동으로 매칭하세요.
+- matched_source: 소스 인덱스(0부터) 또는 null (소스 불필요, AI가 생성)
+- source_prompt: matched_source가 있을 때, kling i2v에 전달할 영어 프롬프트 (이미지의 특성 + 원하는 모션/장면 설명)
+- source_prompt가 null이면 AI가 순수 생성
 
 text_style: bold_center_white/info_bottom_bar/highlight_keyword/cta_animated/rating_display/split_comparison
 transition: cut/fade/wipe_left/wipe_right/zoom_in/dissolve
@@ -105,12 +122,13 @@ JSON만 출력. 설명 없이.
       "timestamp_start": number,
       "model": "string (ai_video만)",
       "prompt": "string (ai_video만, 영어)",
-      "reference_image": "string (ai_video만, source key)",
+      "reference_image": "string|null (ai_video만)",
       "camera_movement": "string (ai_video만)",
-      "source": "string (motion_image만, source key 예: source_1)",
+      "source": "string|null (motion_image만)",
       "motion": "string (motion_image만)",
       "generation_prompt": "string (generated_image만, 영어)",
-      "source_guide": "string|null (사용자에게 필요한 소스 안내, 예: '제품 정면 이미지 필요')",
+      "matched_source": "number|null (소스 인덱스 또는 null)",
+      "source_prompt": "string|null (소스가 매칭된 경우 kling i2v 영어 프롬프트)",
       "text_overlay": "string (한글 자막)",
       "text_style": "string",
       "transition_in": "string"
@@ -147,6 +165,7 @@ JSON만 출력. 설명 없이.
 특장점: ${strengthsText}
 ${contextBlock}
 ${ideaBlock}
+${sourceListBlock}
 
 스타일: ${videoStyle || 'before_after'}
 플랫폼: ${platform === 'shorts' ? 'YouTube Shorts' : 'Instagram Reels'}
@@ -154,9 +173,7 @@ ${ideaBlock}
 사람: ${includeHuman ? '포함(손/턱아래만)' : '제품만'}
 톤: ${toneAndManner || '솔직하고 드라마틱'}
 
-motion_image와 ai_video 씬에는 source_guide를 반드시 포함하세요 (사용자가 어떤 이미지를 업로드해야 하는지 구체적으로 안내).
-generated_image 씬은 source_guide를 null로 설정하세요.
-
+각 씬에 matched_source와 source_prompt를 반드시 포함하세요.
 첫 2초 훅을 매우 강력하게 만들어주세요. 맥락 데이터를 적극 활용하여 타겟이 공감할 수 있는 스토리를 구성하세요.`,
           },
         ],
