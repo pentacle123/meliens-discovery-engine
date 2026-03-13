@@ -42,7 +42,6 @@ export default function StudioEngine() {
   const [videoStyle, setVideoStyle] = useState('before_after')
   const [platform, setPlatform] = useState('reels')
   const [targetDuration, setTargetDuration] = useState(22)
-  const [includeHuman, setIncludeHuman] = useState(false)
   const [toneAndManner, setToneAndManner] = useState('솔직하고 드라마틱')
 
   const [tab, setTab] = useState('input')
@@ -92,7 +91,6 @@ export default function StudioEngine() {
           videoStyle,
           platform,
           targetDuration,
-          includeHuman,
           toneAndManner,
         }),
       })
@@ -113,7 +111,7 @@ export default function StudioEngine() {
     } finally {
       setLoading(false)
     }
-  }, [product, context, ideas, videoStyle, platform, targetDuration, includeHuman, toneAndManner])
+  }, [product, context, ideas, videoStyle, platform, targetDuration, toneAndManner])
 
   // ─── SUB COMPONENTS ───
   function ContextTag({ dim, value }) {
@@ -263,15 +261,6 @@ export default function StudioEngine() {
                 }}>{d}s</button>
               ))}
             </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: C.textMuted }}>사람 등장 (손/턱 아래만)</span>
-            <button onClick={() => setIncludeHuman(!includeHuman)} style={{
-              width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer',
-              background: includeHuman ? C.accent : C.border, position: 'relative',
-            }}>
-              <div style={{ width: 18, height: 18, borderRadius: '50%', background: '#fff', position: 'absolute', top: 3, left: includeHuman ? 23 : 3, transition: 'left 0.2s' }} />
-            </button>
           </div>
           <div>
             <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: C.textMuted, marginBottom: 8, letterSpacing: '0.04em' }}>톤 & 매너</label>

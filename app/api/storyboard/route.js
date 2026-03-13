@@ -13,7 +13,7 @@ import { NextResponse } from 'next/server'
 export async function POST(request) {
   try {
     const body = await request.json()
-    const { product, context, ideas, videoStyle, platform, targetDuration, includeHuman, toneAndManner } = body
+    const { product, context, ideas, videoStyle, platform, targetDuration, toneAndManner } = body
 
     const apiKey = process.env.ANTHROPIC_API_KEY
     if (!apiKey) {
@@ -189,7 +189,6 @@ ${ideaBlock}
 스타일: ${videoStyle || 'before_after'}
 플랫폼: ${platform === 'shorts' ? 'YouTube Shorts' : 'Instagram Reels'}
 길이: ${targetDuration || 22}초
-사람: ${includeHuman ? '포함(손/턱아래만)' : '제품만'}
 톤: ${toneAndManner || '솔직하고 드라마틱'}
 
 각 씬의 촬영 스크립트를 실제 촬영 감독 수준으로 매우 구체적으로 작성해주세요.
