@@ -794,7 +794,7 @@ export default function DiscoveryEngine() {
                               {/* AI producible / 촬영 추천 badge */}
                               {ctx.ai_producible !== undefined && (
                                 <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 6, background: ctx.ai_producible ? `${C.purple}18` : `${C.blue}18`, color: ctx.ai_producible ? C.purple : C.blue, display: 'flex', alignItems: 'center', gap: 3 }}>
-                                  {ctx.ai_producible ? '🤖 AI 영상 가능' : '📷 촬영 추천'}
+                                  {ctx.ai_producible ? '📷 간편 촬영' : '🎬 연출 촬영'}
                                 </span>
                               )}
                               {/* 블루오션 badge */}
@@ -956,7 +956,7 @@ export default function DiscoveryEngine() {
                 localStorage.setItem('meliens_studio_data', JSON.stringify(studioData))
                 router.push('/studio')
               }} style={{ padding: '10px 28px', background: `linear-gradient(135deg, ${C.purple}, ${C.pink})`, color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 700, boxShadow: `0 2px 12px ${C.purple}44` }}>
-                🎬 AI Studio로 보내기
+                📋 촬영 스토리보드 생성
               </button>
             </div>
           </>

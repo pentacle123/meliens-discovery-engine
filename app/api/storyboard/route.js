@@ -2,10 +2,10 @@
  * POST /api/storyboard
  *
  * Discovery Engine 맥락 데이터 + 숏폼 아이디어를 기반으로
- * AI 영상 스토리보드 JSON을 생성합니다.
- * 업로드된 소스 이미지 정보를 받아 AI가 각 씬에 자동 매칭합니다.
+ * 촬영팀에게 바로 전달 가능한 촬영 스토리보드(가이드 시트) JSON을 생성합니다.
  *
- * 비용: ~$0.01 (Claude API만 호출)
+ * AI 영상 생성 관련 필드 제거 — 스토리보드가 최종 산출물입니다.
+ * 각 씬에 상세 촬영 스크립트(카메라, 환경, 연기, 자막, 전환, 음향, 촬영시간)를 포함합니다.
  */
 
 import { NextResponse } from 'next/server'
@@ -13,7 +13,7 @@ import { NextResponse } from 'next/server'
 export async function POST(request) {
   try {
     const body = await request.json()
-    const { product, context, ideas, videoStyle, platform, targetDuration, includeHuman, toneAndManner, uploadedSources } = body
+    const { product, context, ideas, videoStyle, platform, targetDuration, includeHuman, toneAndManner } = body
 
     const apiKey = process.env.ANTHROPIC_API_KEY
     if (!apiKey) {
@@ -51,22 +51,6 @@ export async function POST(request) {
 
     const strengthsText = product.strengths?.map(s => `${s.tag} (시각: ${s.visual})`).join(', ') || ''
 
-    // 업로드된 소스 이미지 정보 블록
-    const hasUploads = uploadedSources?.length > 0
-    const sourceListBlock = hasUploads
-      ? `\n══ 업로드된 제품 소스 이미지 (${uploadedSources.length}장) ══
-${uploadedSources.map((s, i) => `  source_${i}: "${s.name}" (${s.type})`).join('\n')}
-
-중요: 각 씬마다 위 소스 중 가장 적합한 이미지를 자동으로 매칭하세요.
-- matched_source: 해당 씬에 사용할 소스 인덱스 (예: 0, 1, 2) 또는 null (AI 생성)
-- source_prompt: matched_source가 있을 때, 해당 이미지를 kling image-to-video의 참조 이미지로 사용할 때의 영어 프롬프트
-  예: "This cleanser being held near bathroom sink, morning light, subtle motion"
-- source_prompt는 반드시 영어로, 해당 소스 이미지의 특성 + 원하는 모션/장면을 구체적으로 설명
-- 모든 소스를 사용할 필요 없음. 스토리에 적합한 소스만 매칭
-- 소스가 필요 없는 씬은 matched_source: null, source_prompt: null`
-      : `\n소스 이미지 없음 — 모든 씬을 AI 생성 또는 generated_image로 처리하세요.
-모든 씬의 matched_source: null, source_prompt: null`
-
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -76,33 +60,62 @@ ${uploadedSources.map((s, i) => `  source_${i}: "${s.name}" (${s.type})`).join('
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 4096,
-        system: `당신은 숏폼 커머스 영상 전문 크리에이티브 디렉터입니다.
-상품 정보와 발견 커머스 맥락 분석 데이터를 받아 숏폼 영상 스토리보드를 JSON으로 출력합니다.
+        max_tokens: 6000,
+        system: `당신은 숏폼 커머스 영상 전문 촬영 감독입니다.
+상품 정보와 발견 커머스 맥락 분석 데이터를 받아, 촬영팀이 현장에서 바로 쓸 수 있는 수준의 상세한 촬영 스토리보드(가이드 시트)를 JSON으로 출력합니다.
 
-제약: 영상 15~30초, 9:16, AI 영상 최대 3클립(각 5초), 나머지 motion_image 또는 generated_image
-비용 참고: kling_2.5_turbo_pro $0.07/초, wan_2.2 $0.05/초, flux_pro $0.03/장
+이 스토리보드는 실사 촬영 기준이며, 촬영 감독이 현장에서 이 문서만 보고 모든 씬을 촬영할 수 있어야 합니다.
 
-핵심 원칙:
-- 훅: 첫 2초에 타겟의 페인포인트를 시각적으로 보여줘 스크롤을 멈추게 함
-- 구조: Hook(0~2초)→Problem(2~7초)→Solution(7~18초)→Result(18~23초)→CTA
-- 3초마다 시각적 변화, 자막 항상 포함
-- 발견 커머스 맥락(WHO, WHERE, WHEN, PAIN)을 영상에 자연스럽게 반영
+═══ 핵심 원칙 ═══
+1. 훅: 첫 2초에 타겟의 페인포인트를 시각적으로 보여줘 스크롤을 멈추게 함
+2. 구조: Hook(0~2초)→Problem(2~7초)→Solution(7~18초)→Result(18~23초)→CTA(마지막 3초)
+3. 3초마다 시각적 변화, 자막 항상 포함
+4. 발견 커머스 맥락(WHO, WHERE, WHEN, PAIN)을 영상에 자연스럽게 반영
 
-씬 타입:
-- ai_video: model(kling_2.5_turbo_pro/wan_2.2), prompt(영어), reference_image(source key), camera_movement
-- motion_image: source(source key), motion(slow_zoom_in/slow_zoom_out/pan_left/pan_right/float_up/scale_up_center/ken_burns/shake_subtle)
-- generated_image: generation_prompt(영어)
+═══ 각 씬의 촬영 스크립트 (반드시 모든 필드 포함) ═══
+각 씬마다 아래 7가지를 매우 구체적으로 작성하세요:
 
-소스 자동 매칭:
-- 사용자가 업로드한 제품 소스 이미지 목록이 주어집니다.
-- 각 씬마다 가장 적합한 소스를 자동으로 매칭하세요.
-- matched_source: 소스 인덱스(0부터) 또는 null (소스 불필요, AI가 생성)
-- source_prompt: matched_source가 있을 때, kling i2v에 전달할 영어 프롬프트 (이미지의 특성 + 원하는 모션/장면 설명)
-- source_prompt가 null이면 AI가 순수 생성
+1. camera_angle (카메라 앵글/구도):
+   - 구체적 예: "탑뷰 클로즈업, 니트 표면에 보풀이 보이도록 30cm 거리에서 촬영"
+   - "45도 앵글 미디엄 숏, 제품을 들고 있는 손이 프레임 좌측 1/3에 위치"
+   - 절대 "클로즈업"만 쓰지 말고, 거리/각도/피사체 위치까지 구체적으로
 
-text_style: bold_center_white/info_bottom_bar/highlight_keyword/cta_animated/rating_display/split_comparison
-transition: cut/fade/wipe_left/wipe_right/zoom_in/dissolve
+2. set_environment (촬영 환경):
+   - 구체적 예: "자연광, 거실 소파 위, 배경에 쿠션과 잡지가 보이는 약간 어수선한 일상 느낌"
+   - "밝은 욕실, 세면대 위에 스킨케어 제품 2-3개와 수건 배치, 인공조명 소프트박스"
+   - 조명 종류, 배경 소품, 전체 분위기까지 지정
+
+3. acting_direction (연기 디렉션):
+   - 구체적 예: "한 손으로 보풀제거기를 들고 천천히 니트 위를 밀어줌. 2초간 보풀이 모이는 장면을 보여줌"
+   - "카메라를 보지 않고, 자연스럽게 제품을 사용하다가 결과를 확인하며 살짝 고개를 끄덕임"
+   - 행동/시선/표정/동작 속도까지 구체적으로
+
+4. subtitle_text (자막 텍스트):
+   - 실제 화면에 들어갈 한글 자막 전문
+   - 숏폼 스타일: 짧고 임팩트 있게
+
+5. subtitle_timing (자막 타이밍):
+   - 자막이 나타나는 시점과 방식
+   - 예: "씬 시작 0.5초 후 페이드 인, 2초 유지 후 사라짐"
+
+6. transition (전환 효과):
+   - 이전 씬에서 이 씬으로 넘어올 때의 전환 효과
+   - 예: "컷 전환", "줌인 트랜지션", "와이프 레프트", "디졸브 0.3초"
+
+7. audio_guide (음향/BGM 가이드):
+   - 이 씬에서의 음향 디렉션
+   - 예: "환경음 + 제품 작동 소리 강조, BGM 볼륨 낮게"
+   - "BGM 빌드업 구간, 효과음 '뿅' 삽입 (자막 등장과 동시)"
+
+8. estimated_shoot_time (촬영 예상 시간):
+   - 실제 현장에서 이 씬을 촬영하는 데 걸리는 예상 시간
+   - 예: "5~10분", "15분 (세팅 포함)", "3분"
+
+추가 필드:
+- section: "HOOK" | "PROBLEM" | "SOLUTION" | "RESULT" | "CTA" 중 하나
+- description: 씬의 핵심 내용 한 줄 요약
+- director_note: 촬영 시 특별히 주의할 사항 (선택)
+- props: 이 씬에 필요한 소품/준비물 배열 (선택)
 
 JSON만 출력. 설명 없이.
 
@@ -112,52 +125,49 @@ JSON만 출력. 설명 없이.
   "style": "string",
   "platform_primary": "reels|shorts",
   "duration_target": number,
-  "estimated_cost": number,
-  "hook_strategy": "string",
+  "hook_strategy": "string (훅의 전략적 의도와 기대 효과를 설명)",
   "scenes": [
     {
       "scene_no": number,
-      "type": "ai_video|motion_image|generated_image",
+      "section": "HOOK|PROBLEM|SOLUTION|RESULT|CTA",
       "duration": number,
       "timestamp_start": number,
-      "model": "string (ai_video만)",
-      "prompt": "string (ai_video만, 영어)",
-      "reference_image": "string|null (ai_video만)",
-      "camera_movement": "string (ai_video만)",
-      "source": "string|null (motion_image만)",
-      "motion": "string (motion_image만)",
-      "generation_prompt": "string (generated_image만, 영어)",
-      "matched_source": "number|null (소스 인덱스 또는 null)",
-      "source_prompt": "string|null (소스가 매칭된 경우 kling i2v 영어 프롬프트)",
-      "text_overlay": "string (한글 자막)",
-      "text_style": "string",
-      "transition_in": "string"
+      "description": "씬 핵심 내용 한 줄",
+      "camera_angle": "매우 구체적인 카메라 앵글/구도 디렉션",
+      "set_environment": "매우 구체적인 촬영 환경/조명/배경 설명",
+      "acting_direction": "매우 구체적인 연기/동작 디렉션",
+      "subtitle_text": "화면에 나타날 한글 자막",
+      "subtitle_timing": "자막 등장 타이밍 설명",
+      "transition": "이전 씬에서의 전환 효과",
+      "audio_guide": "이 씬의 음향/BGM 디렉션",
+      "estimated_shoot_time": "예상 촬영 시간",
+      "director_note": "string|null (촬영 시 주의사항, 선택)",
+      "props": ["소품1", "소품2"] 또는 null
     }
   ],
   "narration": {
-    "engine": "openai_tts",
-    "voice": "nova",
-    "full_script": "string (한글)",
+    "full_script": "전체 나레이션 스크립트 (한글)",
     "segments": [
       { "scene_no": number, "text": "string", "start_time": number, "end_time": number }
     ]
   },
   "bgm": {
-    "mood": "string",
-    "bpm_range": "string",
-    "volume_ratio": number
+    "mood": "BGM 분위기",
+    "bpm_range": "BPM 범위",
+    "volume_ratio": number (0~1),
+    "reference": "레퍼런스 음악/느낌 설명 (선택)"
   },
   "metadata": {
-    "title": "string",
-    "hashtags": ["string"],
-    "description": "string",
-    "thumbnail_scene": number
+    "title": "영상 제목",
+    "hashtags": ["#태그1", "#태그2"],
+    "description": "영상 설명"
   }
 }`,
         messages: [
           {
             role: 'user',
-            content: `다음 상품의 ${videoStyle || 'before_after'} 숏폼 스토리보드를 생성해주세요.
+            content: `다음 상품의 ${videoStyle || 'before_after'} 숏폼 촬영 스토리보드를 생성해주세요.
+촬영 감독이 현장에서 이 문서만 보고 모든 씬을 촬영할 수 있어야 합니다.
 
 상품명: ${product.name}
 카테고리: ${product.category}
@@ -165,7 +175,6 @@ JSON만 출력. 설명 없이.
 특장점: ${strengthsText}
 ${contextBlock}
 ${ideaBlock}
-${sourceListBlock}
 
 스타일: ${videoStyle || 'before_after'}
 플랫폼: ${platform === 'shorts' ? 'YouTube Shorts' : 'Instagram Reels'}
@@ -173,8 +182,11 @@ ${sourceListBlock}
 사람: ${includeHuman ? '포함(손/턱아래만)' : '제품만'}
 톤: ${toneAndManner || '솔직하고 드라마틱'}
 
-각 씬에 matched_source와 source_prompt를 반드시 포함하세요.
-첫 2초 훅을 매우 강력하게 만들어주세요. 맥락 데이터를 적극 활용하여 타겟이 공감할 수 있는 스토리를 구성하세요.`,
+각 씬의 촬영 스크립트를 실제 촬영 감독 수준으로 매우 구체적으로 작성해주세요.
+- camera_angle: "클로즈업" 같은 모호한 표현 금지. 거리, 각도, 피사체 위치까지 구체적으로
+- set_environment: 조명 종류, 배경 소품, 전체 분위기까지 지정
+- acting_direction: 행동, 시선, 표정, 동작 속도까지 구체적으로
+- 모든 씬에 section 태그를 반드시 포함하세요 (HOOK/PROBLEM/SOLUTION/RESULT/CTA)`,
           },
         ],
       }),
@@ -203,7 +215,6 @@ ${sourceListBlock}
     return NextResponse.json({
       success: true,
       storyboard,
-      estimatedCost: storyboard.estimated_cost,
     })
   } catch (error) {
     console.error('[Storyboard API] Error:', error)

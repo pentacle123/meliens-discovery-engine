@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 
 // ─── STYLE CONSTANTS (Meliens 디자인 시스템) ───
@@ -13,18 +13,6 @@ const C = {
   blue: '#60a5fa', green: '#34d399', red: '#f87171',
 }
 
-const TYPE_COLORS = {
-  ai_video: '#a78bfa',
-  motion_image: '#4ecdc4',
-  generated_image: '#f59e0b',
-}
-
-const TYPE_LABELS = {
-  ai_video: 'AI VIDEO',
-  motion_image: 'MOTION',
-  generated_image: 'AI IMAGE',
-}
-
 const VIDEO_STYLES = [
   { id: 'product_demo', label: '제품 시연', icon: '▶' },
   { id: 'before_after', label: '비포&애프터', icon: '◐' },
@@ -35,6 +23,15 @@ const PLATFORMS = [
   { id: 'shorts', label: 'YouTube Shorts', color: '#ff0000' },
   { id: 'reels', label: 'Instagram Reels', color: '#e1306c' },
 ]
+
+// 씬 섹션 색상
+const SECTION_COLORS = {
+  HOOK: C.red,
+  PROBLEM: C.orange,
+  SOLUTION: C.accent,
+  RESULT: C.green,
+  CTA: C.purple,
+}
 
 // ─── MAIN COMPONENT ───
 export default function StudioEngine() {
@@ -54,15 +51,7 @@ export default function StudioEngine() {
   const [error, setError] = useState(null)
   const [stage, setStage] = useState('')
   const [progress, setProgress] = useState(0)
-  const [activeScene, setActiveScene] = useState(0)
-  const [videoUrl, setVideoUrl] = useState(null)
-  const [generating, setGenerating] = useState(false)
-  const [assetErrors, setAssetErrors] = useState(null)
-
-  // 제품 소스 이미지 (통합 업로드)
-  const [sourceFiles, setSourceFiles] = useState([])
-  const [dragOver, setDragOver] = useState(false)
-  const fileInputRef = useRef(null)
+  const [expandedScene, setExpandedScene] = useState(null)
 
   // ─── Discovery Engine 데이터 수신 ───
   useEffect(() => {
@@ -81,32 +70,7 @@ export default function StudioEngine() {
     }
   }, [])
 
-  // ─── 제품 소스 파일 처리 ───
-  const handleSourceFiles = useCallback((files) => {
-    const newFiles = Array.from(files).filter(f => {
-      const isImage = f.type.startsWith('image/')
-      const isVideo = f.type.startsWith('video/')
-      return (isImage || isVideo) && f.size <= 20 * 1024 * 1024
-    }).map(f => ({
-      file: f,
-      name: f.name,
-      size: f.size,
-      type: f.type.startsWith('video/') ? 'video' : 'image',
-      previewUrl: URL.createObjectURL(f),
-    }))
-    setSourceFiles(prev => [...prev, ...newFiles])
-  }, [])
-
-  const removeSourceFile = useCallback((idx) => {
-    setSourceFiles(prev => {
-      const updated = [...prev]
-      if (updated[idx]?.previewUrl) URL.revokeObjectURL(updated[idx].previewUrl)
-      updated.splice(idx, 1)
-      return updated
-    })
-  }, [])
-
-  // ─── 스토리보드 생성 (소스 정보 포함) ───
+  // ─── 스토리보드 생성 ───
   const handleGenerateStoryboard = useCallback(async () => {
     if (!product) {
       setError('제품 정보가 없습니다. Discovery Engine에서 제품을 선택해주세요.')
@@ -114,17 +78,10 @@ export default function StudioEngine() {
     }
     setLoading(true)
     setError(null)
-    setStage('AI 크리에이티브 디렉터가 스토리보드를 설계하고 있습니다...')
-    setProgress(20)
+    setStage('AI 크리에이티브 디렉터가 촬영 스토리보드를 설계하고 있습니다...')
+    setProgress(30)
 
     try {
-      // 업로드된 소스 파일 정보를 API에 전달 (파일 내용이 아닌 메타데이터만)
-      const uploadedSources = sourceFiles.map((sf, i) => ({
-        index: i,
-        name: sf.name,
-        type: sf.type,
-      }))
-
       const res = await fetch('/api/storyboard', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -137,9 +94,11 @@ export default function StudioEngine() {
           targetDuration,
           includeHuman,
           toneAndManner,
-          uploadedSources,
         }),
       })
+
+      setProgress(80)
+      setStage('스토리보드 구성 완료, 촬영 가이드 시트를 정리하고 있습니다...')
 
       const data = await res.json()
       if (!data.success) throw new Error(data.error || '스토리보드 생성 실패')
@@ -147,94 +106,14 @@ export default function StudioEngine() {
       setStoryboard(data.storyboard)
       setTab('storyboard')
       setProgress(100)
-      setStage('스토리보드 완성!')
+      setStage('촬영 스토리보드 완성!')
+      setExpandedScene(0)
     } catch (err) {
       setError(err.message || '스토리보드 생성 실패')
     } finally {
       setLoading(false)
     }
-  }, [product, context, ideas, videoStyle, platform, targetDuration, includeHuman, toneAndManner, sourceFiles])
-
-  // ─── 파일 → base64 변환 헬퍼 ───
-  const fileToDataUrl = useCallback((file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = () => resolve(reader.result)
-      reader.onerror = reject
-      reader.readAsDataURL(file)
-    })
-  }, [])
-
-  // ─── 씬의 소스 매칭 변경 ───
-  const updateSceneMatch = useCallback((sceneNo, newSourceIdx) => {
-    if (!storyboard) return
-    setStoryboard(prev => ({
-      ...prev,
-      scenes: prev.scenes.map(s =>
-        s.scene_no === sceneNo
-          ? { ...s, matched_source: newSourceIdx === 'null' ? null : Number(newSourceIdx) }
-          : s
-      ),
-    }))
-  }, [storyboard])
-
-  // ─── 영상 생성 ───
-  const handleGenerateVideo = useCallback(async () => {
-    if (!storyboard) return
-    setGenerating(true)
-    setError(null)
-    setStage('AI 영상 클립 생성 중... (2~4분 소요)')
-    setProgress(10)
-
-    const stages = [
-      { p: 30, msg: 'fal.ai에서 AI 영상 클립 생성 중...' },
-      { p: 60, msg: '에셋 생성 완료, 나레이션 생성 중...' },
-      { p: 80, msg: 'Creatomate에서 최종 영상 합성 중...' },
-    ]
-    let stageIdx = 0
-    const interval = setInterval(() => {
-      if (stageIdx < stages.length) {
-        setProgress(stages[stageIdx].p)
-        setStage(stages[stageIdx].msg)
-        stageIdx++
-      }
-    }, 30000)
-
-    try {
-      // 제품 소스 이미지를 base64로 변환하여 전달
-      const imagesPayload = await Promise.all(
-        sourceFiles.map(async (sf, i) => ({
-          key: `source_${i}`,
-          description: sf.name,
-          url: await fileToDataUrl(sf.file),
-        }))
-      )
-
-      const res = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          storyboard,
-          images: imagesPayload,
-        }),
-      })
-
-      clearInterval(interval)
-      const data = await res.json()
-      if (!data.success) throw new Error(data.error || '영상 생성 실패')
-
-      setVideoUrl(data.videoUrl)
-      setAssetErrors(data.assetErrors || null)
-      setTab('output')
-      setProgress(100)
-      setStage(`완료! 총 비용: $${data.totalCost?.toFixed(2)}`)
-    } catch (err) {
-      clearInterval(interval)
-      setError(err.message || '영상 생성 실패')
-    } finally {
-      setGenerating(false)
-    }
-  }, [storyboard, sourceFiles, fileToDataUrl])
+  }, [product, context, ideas, videoStyle, platform, targetDuration, includeHuman, toneAndManner])
 
   // ─── SUB COMPONENTS ───
   function ContextTag({ dim, value }) {
@@ -248,6 +127,19 @@ export default function StudioEngine() {
       }}>
         <span style={{ fontSize: 9, fontWeight: 700, marginRight: 4, opacity: 0.7 }}>{dim}</span>{value}
       </span>
+    )
+  }
+
+  function DetailRow({ icon, label, value, color = C.textMuted }) {
+    if (!value) return null
+    return (
+      <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '8px 0', borderBottom: `1px solid ${C.border}` }}>
+        <span style={{ fontSize: 14, flexShrink: 0, marginTop: 1 }}>{icon}</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color, letterSpacing: '0.06em', marginBottom: 3 }}>{label}</div>
+          <div style={{ fontSize: 13, color: C.text, lineHeight: 1.6 }}>{value}</div>
+        </div>
+      </div>
     )
   }
 
@@ -328,69 +220,9 @@ export default function StudioEngine() {
           </div>
         )}
 
-        {/* 제품 소스 이미지 업로드 */}
-        <div style={{ background: C.card, border: `1px solid ${sourceFiles.length > 0 ? C.accent : C.border}44`, borderRadius: 14, padding: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: C.text, margin: 0 }}>📷 제품 소스 이미지</h3>
-            {sourceFiles.length > 0 && (
-              <span style={{ fontSize: 11, color: C.accent, fontWeight: 600 }}>{sourceFiles.length}장 업로드</span>
-            )}
-          </div>
-          <p style={{ fontSize: 11, color: C.textMuted, marginBottom: 12, lineHeight: 1.5 }}>
-            제품 사진/영상을 3~5장 업로드하면, AI가 스토리보드를 보고 <strong style={{ color: C.accent }}>각 씬에 가장 적합한 소스를 자동 매칭</strong>합니다.
-          </p>
-
-          {/* 업로드된 파일 그리드 */}
-          {sourceFiles.length > 0 && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 8, marginBottom: 12 }}>
-              {sourceFiles.map((sf, i) => (
-                <div key={i} style={{
-                  position: 'relative', borderRadius: 10, overflow: 'hidden',
-                  border: `1px solid ${C.accent}33`, background: C.surface,
-                }}>
-                  <img src={sf.previewUrl} alt={sf.name} style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
-                  <button onClick={() => removeSourceFile(i)} style={{
-                    position: 'absolute', top: 4, right: 4, width: 20, height: 20, borderRadius: '50%',
-                    background: 'rgba(0,0,0,0.7)', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 11,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>×</button>
-                  <div style={{
-                    position: 'absolute', bottom: 0, left: 0, right: 0,
-                    background: 'rgba(0,0,0,0.7)', padding: '4px 6px',
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  }}>
-                    <span style={{ fontSize: 8, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{sf.name}</span>
-                    <span style={{ fontSize: 9, color: C.accent, fontWeight: 700, marginLeft: 4, flexShrink: 0 }}>#{i}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* 드래그 앤 드롭 */}
-          <div
-            onClick={() => fileInputRef.current?.click()}
-            onDragOver={e => { e.preventDefault(); setDragOver(true) }}
-            onDragLeave={() => setDragOver(false)}
-            onDrop={e => { e.preventDefault(); setDragOver(false); handleSourceFiles(e.dataTransfer.files) }}
-            style={{
-              border: `2px dashed ${dragOver ? C.accent : C.border}`,
-              borderRadius: 10, padding: '18px 12px', textAlign: 'center',
-              cursor: 'pointer', transition: 'all 0.2s',
-              background: dragOver ? `${C.accent}08` : 'transparent',
-            }}
-          >
-            <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple style={{ display: 'none' }}
-              onChange={e => { handleSourceFiles(e.target.files); e.target.value = '' }} />
-            <div style={{ fontSize: 24, opacity: 0.4, marginBottom: 6 }}>📷</div>
-            <div style={{ fontSize: 12, color: C.textMuted, fontWeight: 600 }}>클릭 또는 드래그하여 업로드</div>
-            <div style={{ fontSize: 10, color: C.textDim, marginTop: 4 }}>이미지/영상 여러 장 가능 · 20MB 이내 · 선택사항</div>
-          </div>
-        </div>
-
-        {/* 영상 설정 */}
+        {/* 촬영 설정 */}
         <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 20 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 16 }}>영상 설정</h3>
+          <h3 style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 16 }}>촬영 설정</h3>
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: C.textMuted, marginBottom: 8, letterSpacing: '0.04em' }}>영상 스타일</label>
             <div style={{ display: 'flex', gap: 8 }}>
@@ -446,14 +278,13 @@ export default function StudioEngine() {
             <input value={toneAndManner} onChange={e => setToneAndManner(e.target.value)} style={{
               width: '100%', padding: '10px 14px', borderRadius: 8,
               background: C.surface, border: `1px solid ${C.border}`, color: C.text,
-              fontSize: 13, outline: 'none', fontFamily: 'inherit',
+              fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
             }} />
           </div>
         </div>
 
         {/* 생성 버튼 */}
         <button onClick={handleGenerateStoryboard} disabled={loading || !product}
-          className={loading || !product ? '' : 'pulse-glow'}
           style={{
             width: '100%', padding: 16, borderRadius: 12, border: 'none',
             background: loading || !product ? C.border : `linear-gradient(135deg, ${C.accent}, ${C.purple})`,
@@ -463,264 +294,328 @@ export default function StudioEngine() {
             transition: 'all 0.3s ease',
           }}
         >
-          {loading ? '◌ 스토리보드 생성 중...' : `⚡ AI 스토리보드 생성 (~$0.01)${sourceFiles.length > 0 ? ` · 소스 ${sourceFiles.length}장 자동 매칭` : ''}`}
+          {loading ? '◌ 촬영 스토리보드 생성 중...' : '📋 촬영 스토리보드 생성'}
         </button>
       </div>
     )
   }
 
-  // ─── RENDER: STORYBOARD TAB ───
+  // ─── RENDER: STORYBOARD TAB (촬영 가이드 시트) ───
   function renderStoryboard() {
     if (!storyboard) {
       return (
         <div style={{ textAlign: 'center', padding: 60, color: C.textMuted }}>
-          <div style={{ fontSize: 48, opacity: 0.3, marginBottom: 16 }}>🎬</div>
-          <p style={{ fontSize: 14 }}>상품 입력 탭에서 스토리보드를 먼저 생성해주세요</p>
+          <div style={{ fontSize: 48, opacity: 0.3, marginBottom: 16 }}>📋</div>
+          <p style={{ fontSize: 14 }}>제품 & 설정 탭에서 촬영 스토리보드를 먼저 생성해주세요</p>
         </div>
       )
     }
 
-    const scene = storyboard.scenes?.[activeScene]
-    const matchedCount = storyboard.scenes?.filter(s => s.matched_source !== null && s.matched_source !== undefined).length || 0
+    const totalDuration = storyboard.scenes?.reduce((sum, s) => sum + (s.duration || 0), 0) || 0
 
     return (
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20 }}>
-        {/* Left: Scene list */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {/* Hook */}
-          <div style={{ background: C.card, borderRadius: 12, padding: 14, borderLeft: `3px solid ${C.orange}` }}>
-            <span style={{ fontSize: 10, fontWeight: 700, color: C.orange, letterSpacing: '0.06em', display: 'block', marginBottom: 4 }}>🎣 훅 전략</span>
-            <span style={{ fontSize: 13, color: C.text, lineHeight: 1.5 }}>{storyboard.hook_strategy}</span>
-          </div>
-
-          {/* 소스 매칭 요약 */}
-          {sourceFiles.length > 0 && (
-            <div style={{ background: C.card, border: `1px solid ${C.accent}33`, borderRadius: 12, padding: 14 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: C.accent, letterSpacing: '0.06em' }}>🤖 AI 소스 자동 매칭</span>
-                <span style={{ fontSize: 10, color: C.textMuted }}>{matchedCount}/{storyboard.scenes?.length}개 씬 매칭</span>
+      <div>
+        {/* 상단 요약 바 */}
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 20, marginBottom: 24 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
+            <div>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: C.text, margin: '0 0 6px 0' }}>
+                📋 {storyboard.metadata?.title || `${product?.name} 촬영 스토리보드`}
+              </h2>
+              <p style={{ fontSize: 12, color: C.textMuted, margin: 0 }}>
+                {storyboard.metadata?.description || '촬영팀 전달용 가이드 시트'}
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <div style={{ padding: '8px 14px', background: C.surface, borderRadius: 10, textAlign: 'center' }}>
+                <div style={{ fontSize: 9, color: C.textDim, letterSpacing: '0.06em', marginBottom: 2 }}>플랫폼</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: platform === 'shorts' ? '#ff0000' : '#e1306c' }}>
+                  {platform === 'shorts' ? 'YouTube' : 'Instagram'}
+                </div>
               </div>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {sourceFiles.map((sf, i) => {
-                  const usedBy = storyboard.scenes?.filter(s => s.matched_source === i).length || 0
-                  return (
-                    <div key={i} style={{
-                      display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px',
-                      background: usedBy > 0 ? `${C.accent}12` : C.surface,
-                      borderRadius: 8, border: `1px solid ${usedBy > 0 ? C.accent : C.border}30`,
-                    }}>
-                      <img src={sf.previewUrl} alt="" style={{ width: 24, height: 24, borderRadius: 4, objectFit: 'cover' }} />
-                      <span style={{ fontSize: 10, color: usedBy > 0 ? C.accent : C.textDim, fontWeight: 600 }}>
-                        #{i} {usedBy > 0 ? `→ ${usedBy}씬` : '미사용'}
-                      </span>
-                    </div>
-                  )
-                })}
+              <div style={{ padding: '8px 14px', background: C.surface, borderRadius: 10, textAlign: 'center' }}>
+                <div style={{ fontSize: 9, color: C.textDim, letterSpacing: '0.06em', marginBottom: 2 }}>총 길이</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.accent }}>{totalDuration}초</div>
+              </div>
+              <div style={{ padding: '8px 14px', background: C.surface, borderRadius: 10, textAlign: 'center' }}>
+                <div style={{ fontSize: 9, color: C.textDim, letterSpacing: '0.06em', marginBottom: 2 }}>씬 수</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.blue }}>{storyboard.scenes?.length || 0}개</div>
+              </div>
+              <div style={{ padding: '8px 14px', background: C.surface, borderRadius: 10, textAlign: 'center' }}>
+                <div style={{ fontSize: 9, color: C.textDim, letterSpacing: '0.06em', marginBottom: 2 }}>스타일</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.purple }}>{videoStyle}</div>
               </div>
             </div>
-          )}
-
-          {/* Scenes */}
-          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <h3 style={{ fontSize: 13, fontWeight: 700, color: C.text, margin: 0 }}>씬 구성</h3>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {storyboard.scenes?.map((s, i) => {
-                const hasMatch = s.matched_source !== null && s.matched_source !== undefined
-                const matchedFile = hasMatch ? sourceFiles[s.matched_source] : null
-                return (
-                  <div key={i} style={{
-                    background: C.surface, borderRadius: 10, overflow: 'hidden',
-                    borderLeft: `3px solid ${TYPE_COLORS[s.type] || C.textDim}`,
-                    opacity: activeScene === i ? 1 : 0.75, transition: 'opacity 0.2s',
-                  }}>
-                    {/* 씬 헤더 */}
-                    <div onClick={() => setActiveScene(i)} style={{
-                      padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer',
-                    }}>
-                      <div style={{
-                        width: 24, height: 24, borderRadius: '50%', background: C.border,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 11, fontWeight: 700, color: C.textMuted, flexShrink: 0,
-                      }}>{s.scene_no}</div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                          <span style={{ fontSize: 9, fontWeight: 700, color: TYPE_COLORS[s.type], fontFamily: 'monospace' }}>
-                            {TYPE_LABELS[s.type] || s.type}
-                          </span>
-                          {s.model && <span style={{ fontSize: 9, color: C.textDim }}>{s.model}</span>}
-                        </div>
-                        <div style={{ fontSize: 11, color: C.textMuted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {s.text_overlay || s.prompt?.substring(0, 60) || s.motion || ''}
-                        </div>
-                      </div>
-                      <span style={{ fontSize: 11, color: C.textDim, fontFamily: 'monospace', flexShrink: 0 }}>{s.duration}s</span>
-                    </div>
-
-                    {/* AI 소스 매칭 결과 */}
-                    <div style={{ padding: '0 14px 10px 14px' }}>
-                      <div style={{
-                        display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px',
-                        background: hasMatch ? `${C.accent}08` : `${C.purple}08`,
-                        borderRadius: 8, border: `1px solid ${hasMatch ? C.accent : C.purple}20`,
-                      }}>
-                        {hasMatch && matchedFile ? (
-                          <>
-                            <img src={matchedFile.previewUrl} alt="" style={{ width: 32, height: 32, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }} />
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: 10, color: C.accent, fontWeight: 700 }}>소스 #{s.matched_source} 매칭</div>
-                              <div style={{ fontSize: 9, color: C.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {s.source_prompt?.slice(0, 60) || ''}
-                              </div>
-                            </div>
-                          </>
-                        ) : (
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: 10, color: C.purple, fontWeight: 700 }}>🤖 순수 AI 생성</div>
-                            <div style={{ fontSize: 9, color: C.textDim }}>소스 불필요 — AI가 장면을 생성합니다</div>
-                          </div>
-                        )}
-                        {/* 소스 변경 드롭다운 */}
-                        {sourceFiles.length > 0 && (
-                          <select
-                            value={hasMatch ? s.matched_source : 'null'}
-                            onChange={e => updateSceneMatch(s.scene_no, e.target.value)}
-                            style={{
-                              fontSize: 10, padding: '3px 6px', borderRadius: 6,
-                              background: C.bg, color: C.textMuted, border: `1px solid ${C.border}`,
-                              cursor: 'pointer', flexShrink: 0,
-                            }}
-                          >
-                            <option value="null">AI 생성</option>
-                            {sourceFiles.map((_, si) => (
-                              <option key={si} value={si}>소스 #{si}</option>
-                            ))}
-                          </select>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Narration */}
-          {storyboard.narration && (
-            <div style={{ background: C.card, borderRadius: 12, padding: 14 }}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: C.green, letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>🎙 나레이션</span>
-              <p style={{ fontSize: 12, color: C.textMuted, lineHeight: 1.7, margin: 0 }}>{storyboard.narration.full_script}</p>
-            </div>
-          )}
-
-          {/* Metadata */}
-          {storyboard.metadata && (
-            <div style={{ background: C.card, borderRadius: 12, padding: 14 }}>
-              <div style={{ fontSize: 14, color: C.text, fontWeight: 600, marginBottom: 6 }}>{storyboard.metadata.title}</div>
-              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                {storyboard.metadata.hashtags?.map((tag, i) => (
-                  <span key={i} style={{ padding: '2px 7px', background: `${C.purple}18`, borderRadius: 6, fontSize: 10, color: C.purple }}>{tag}</span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Cost + actions */}
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            <div style={{ flex: 1, padding: '10px 14px', background: C.card, borderRadius: 10, fontSize: 12 }}>
-              <span style={{ color: C.textMuted }}>예상 비용: </span>
-              <span style={{ color: C.green, fontWeight: 700 }}>${storyboard.estimated_cost?.toFixed?.(2) || '0.80'}</span>
-              <span style={{ color: C.textDim, marginLeft: 8 }}>{storyboard.duration_target || targetDuration}초</span>
-            </div>
-            <button onClick={() => { setStoryboard(null); setTab('input') }} style={{
-              padding: '10px 20px', borderRadius: 8, border: `1px solid ${C.border}`,
-              background: C.card, color: C.textMuted, fontSize: 12, fontWeight: 600, cursor: 'pointer',
-            }}>↻ 재생성</button>
-            <button onClick={handleGenerateVideo} disabled={generating} style={{
-              padding: '10px 20px', borderRadius: 8, border: 'none',
-              background: generating ? C.border : C.green,
-              color: generating ? C.textDim : C.bg,
-              fontSize: 12, fontWeight: 700, cursor: generating ? 'not-allowed' : 'pointer',
-            }}>
-              {generating ? '◌ 생성 중...' : '🎬 영상 생성 (~$0.80)'}
-            </button>
           </div>
         </div>
 
-        {/* Right: Preview sidebar */}
-        {scene && (
-          <div style={{ position: 'sticky', top: 20, alignSelf: 'start' }}>
-            <div style={{ background: C.card, borderRadius: 14, overflow: 'hidden', border: `1px solid ${C.border}` }}>
-              <div style={{
-                aspectRatio: '9/16', maxHeight: 420, background: '#000',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative',
+        {/* 훅 전략 */}
+        {storyboard.hook_strategy && (
+          <div style={{ background: `${C.orange}0a`, border: `1px solid ${C.orange}30`, borderRadius: 14, padding: 18, marginBottom: 24, borderLeft: `4px solid ${C.orange}` }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <span style={{ fontSize: 16 }}>🎣</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: C.orange, letterSpacing: '0.06em' }}>훅 전략</span>
+            </div>
+            <p style={{ fontSize: 14, color: C.text, margin: 0, lineHeight: 1.6 }}>{storyboard.hook_strategy}</p>
+          </div>
+        )}
+
+        {/* 타임라인 바 */}
+        <div style={{ marginBottom: 28 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, letterSpacing: '0.06em' }}>TIMELINE</span>
+            <span style={{ fontSize: 10, color: C.textDim }}>({totalDuration}초)</span>
+          </div>
+          <div style={{ display: 'flex', gap: 2, background: C.border, borderRadius: 8, overflow: 'hidden', padding: 2 }}>
+            {storyboard.scenes?.map((s, i) => {
+              const sectionColor = SECTION_COLORS[s.section?.toUpperCase()] || C.textDim
+              const widthPercent = totalDuration > 0 ? (s.duration / totalDuration * 100) : (100 / (storyboard.scenes?.length || 1))
+              return (
+                <button key={i} onClick={() => setExpandedScene(expandedScene === i ? null : i)} style={{
+                  width: `${widthPercent}%`, minWidth: 28, height: 44, borderRadius: 6, cursor: 'pointer',
+                  border: expandedScene === i ? '2px solid #fff' : '1px solid transparent',
+                  background: `${sectionColor}${expandedScene === i ? '' : '60'}`,
+                  fontSize: 10, fontWeight: 700, color: '#fff',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                  gap: 1, overflow: 'hidden', transition: 'all 0.2s ease',
+                }}>
+                  <span style={{ fontSize: 8, opacity: 0.8, textTransform: 'uppercase' }}>{s.section || ''}</span>
+                  <span>{s.duration}s</span>
+                </button>
+              )
+            })}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+            <span style={{ fontSize: 9, color: C.textDim, fontFamily: 'monospace' }}>0:00</span>
+            <span style={{ fontSize: 9, color: C.textDim, fontFamily: 'monospace' }}>0:{String(totalDuration).padStart(2, '0')}</span>
+          </div>
+        </div>
+
+        {/* 씬별 촬영 스크립트 */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {storyboard.scenes?.map((s, i) => {
+            const isExpanded = expandedScene === i
+            const sectionColor = SECTION_COLORS[s.section?.toUpperCase()] || C.accent
+            const timeStart = storyboard.scenes.slice(0, i).reduce((sum, sc) => sum + (sc.duration || 0), 0)
+            const timeEnd = timeStart + (s.duration || 0)
+
+            return (
+              <div key={i} style={{
+                background: C.card, border: `1px solid ${isExpanded ? sectionColor : C.border}`,
+                borderLeft: `4px solid ${sectionColor}`,
+                borderRadius: 14, overflow: 'hidden', transition: 'all 0.3s ease',
               }}>
-                <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at center, #1a1a2e 0%, #000 70%)' }} />
-                <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', padding: 20 }}>
-                  <span style={{
-                    padding: '3px 8px', background: TYPE_COLORS[scene.type] || C.textDim,
-                    borderRadius: 5, fontSize: 9, fontWeight: 700, color: '#fff', letterSpacing: '0.08em',
-                  }}>
-                    {TYPE_LABELS[scene.type] || scene.type}
-                  </span>
-                  {scene.text_overlay && (
-                    <div style={{
-                      marginTop: 16, fontSize: scene.text_style === 'bold_center_white' ? 18 : 14,
-                      fontWeight: 800, color: '#fff', textShadow: '0 2px 8px rgba(0,0,0,0.8)', lineHeight: 1.4,
-                    }}>{scene.text_overlay}</div>
-                  )}
-                  {scene.source_prompt && (
-                    <div style={{ marginTop: 10, fontSize: 10, color: C.accent, lineHeight: 1.4, maxWidth: 220, margin: '10px auto 0', opacity: 0.8 }}>
-                      i2v: {scene.source_prompt.substring(0, 80)}...
+                {/* 씬 헤더 (항상 표시) */}
+                <div onClick={() => setExpandedScene(isExpanded ? null : i)} style={{
+                  padding: '14px 20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14,
+                  background: isExpanded ? `${sectionColor}08` : 'transparent',
+                }}>
+                  {/* 씬 번호 */}
+                  <div style={{
+                    width: 36, height: 36, borderRadius: '50%',
+                    background: isExpanded ? sectionColor : `${sectionColor}30`,
+                    color: isExpanded ? '#fff' : sectionColor,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 14, fontWeight: 800, flexShrink: 0,
+                  }}>{s.scene_no}</div>
+
+                  {/* 씬 요약 */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+                      <span style={{
+                        fontSize: 9, fontWeight: 800, padding: '2px 8px', borderRadius: 4,
+                        background: `${sectionColor}22`, color: sectionColor, letterSpacing: '0.08em',
+                      }}>{s.section || 'SCENE'}</span>
+                      <span style={{ fontSize: 11, color: C.textDim, fontFamily: 'monospace' }}>
+                        {Math.floor(timeStart / 60)}:{String(timeStart % 60).padStart(2, '0')} — {Math.floor(timeEnd / 60)}:{String(timeEnd % 60).padStart(2, '0')}
+                      </span>
+                      <span style={{ fontSize: 10, color: C.textDim }}>({s.duration}초)</span>
+                      {s.estimated_shoot_time && (
+                        <span style={{ fontSize: 9, padding: '2px 7px', borderRadius: 4, background: `${C.purple}18`, color: C.purple }}>
+                          촬영 {s.estimated_shoot_time}
+                        </span>
+                      )}
                     </div>
-                  )}
-                  {scene.prompt && !scene.source_prompt && (
-                    <div style={{ marginTop: 10, fontSize: 10, color: C.purple, lineHeight: 1.4, maxWidth: 220, margin: '10px auto 0', opacity: 0.7 }}>
-                      {scene.prompt.substring(0, 100)}...
+                    <div style={{ fontSize: 13, color: C.text, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {s.subtitle_text || s.description || ''}
                     </div>
-                  )}
-                  {scene.motion && (
-                    <div style={{ marginTop: 8, fontSize: 10, color: C.accent, fontFamily: 'monospace', opacity: 0.6 }}>
-                      motion: {scene.motion}
-                    </div>
-                  )}
-                  {/* 매칭된 소스 프리뷰 */}
-                  {scene.matched_source !== null && scene.matched_source !== undefined && sourceFiles[scene.matched_source] && (
-                    <div style={{ marginTop: 12, display: 'flex', justifyContent: 'center' }}>
-                      <img src={sourceFiles[scene.matched_source].previewUrl} alt="matched"
-                        style={{ width: 60, height: 60, borderRadius: 8, objectFit: 'cover', border: `2px solid ${C.accent}` }} />
-                    </div>
-                  )}
+                  </div>
+
+                  {/* 확장 아이콘 */}
+                  <span style={{ fontSize: 16, color: C.textDim, transform: isExpanded ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s', flexShrink: 0 }}>▾</span>
                 </div>
-                <div style={{ position: 'absolute', top: 8, left: 10, background: 'rgba(0,0,0,0.6)', borderRadius: 6, padding: '3px 8px', fontSize: 10, fontWeight: 700, color: C.text }}>
-                  {scene.scene_no}/{storyboard.scenes.length}
-                </div>
-                <div style={{ position: 'absolute', top: 8, right: 10, background: 'rgba(0,0,0,0.6)', borderRadius: 6, padding: '3px 8px', fontSize: 10, color: C.textMuted, fontFamily: 'monospace' }}>
-                  {scene.duration}s
-                </div>
+
+                {/* 씬 상세 (확장 시) */}
+                {isExpanded && (
+                  <div style={{ padding: '0 20px 20px 20px' }}>
+                    <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 16 }}>
+                      {/* 촬영 스크립트 디테일 */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 0 }}>
+                        <DetailRow icon="📸" label="카메라 앵글 / 구도" value={s.camera_angle} color={C.blue} />
+                        <DetailRow icon="🌅" label="촬영 환경" value={s.set_environment} color={C.green} />
+                        <DetailRow icon="🎬" label="연기 디렉션" value={s.acting_direction} color={C.orange} />
+                        <DetailRow icon="💬" label="자막 텍스트" value={s.subtitle_text} color={C.accent} />
+                        <DetailRow icon="⏱️" label="자막 타이밍" value={s.subtitle_timing} color={C.textMuted} />
+                        <DetailRow icon="🔀" label="전환 효과" value={s.transition} color={C.purple} />
+                        <DetailRow icon="🔊" label="음향 / BGM 가이드" value={s.audio_guide} color={C.pink} />
+                        <DetailRow icon="⏰" label="예상 촬영 시간" value={s.estimated_shoot_time} color={C.purple} />
+                      </div>
+
+                      {/* 추가 노트 */}
+                      {s.director_note && (
+                        <div style={{ marginTop: 14, padding: '12px 16px', background: `${C.purple}0a`, border: `1px solid ${C.purple}20`, borderRadius: 10 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                            <span style={{ fontSize: 12 }}>📝</span>
+                            <span style={{ fontSize: 10, fontWeight: 700, color: C.purple, letterSpacing: '0.06em' }}>감독 노트</span>
+                          </div>
+                          <p style={{ fontSize: 12, color: C.textMuted, margin: 0, lineHeight: 1.6 }}>{s.director_note}</p>
+                        </div>
+                      )}
+
+                      {/* 소품/준비물 */}
+                      {s.props && (
+                        <div style={{ marginTop: 10, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: C.textDim, marginRight: 4 }}>준비물:</span>
+                          {(Array.isArray(s.props) ? s.props : [s.props]).map((prop, pi) => (
+                            <span key={pi} style={{ fontSize: 10, padding: '3px 8px', background: C.surface, color: C.textMuted, borderRadius: 6, border: `1px solid ${C.border}` }}>{prop}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
-              {/* Timeline */}
-              <div style={{ padding: '10px 12px', background: C.bg }}>
-                <div style={{ display: 'flex', gap: 2 }}>
-                  {storyboard.scenes.map((s, i) => (
-                    <button key={i} onClick={() => setActiveScene(i)} style={{
-                      flex: s.duration / (storyboard.duration_target || targetDuration),
-                      height: 28, borderRadius: 5, cursor: 'pointer',
-                      border: activeScene === i ? '2px solid #fff' : '1px solid transparent',
-                      background: `${TYPE_COLORS[s.type] || C.textDim}${activeScene === i ? '' : '40'}`,
-                      fontSize: 8, fontWeight: 600,
-                      color: activeScene === i ? '#fff' : C.textMuted,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-                    }}>
-                      {s.duration >= 4 ? `${s.duration}s` : ''}
-                    </button>
-                  ))}
-                </div>
+            )
+          })}
+        </div>
+
+        {/* 나레이션 */}
+        {storyboard.narration && (
+          <div style={{ marginTop: 24, background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+              <span style={{ fontSize: 16 }}>🎙</span>
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: C.text, margin: 0 }}>나레이션 스크립트</h3>
+            </div>
+            <p style={{ fontSize: 13, color: C.textMuted, lineHeight: 1.8, margin: '0 0 14px 0', padding: '12px 16px', background: C.surface, borderRadius: 10 }}>
+              {storyboard.narration.full_script}
+            </p>
+            {storyboard.narration.segments?.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <span style={{ fontSize: 10, fontWeight: 700, color: C.textDim, letterSpacing: '0.06em' }}>씬별 나레이션</span>
+                {storyboard.narration.segments.map((seg, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '8px 12px', background: C.surface, borderRadius: 8 }}>
+                    <span style={{ fontSize: 10, color: C.accent, fontWeight: 700, fontFamily: 'monospace', flexShrink: 0, marginTop: 2 }}>
+                      #{seg.scene_no}
+                    </span>
+                    <span style={{ fontSize: 12, color: C.text, lineHeight: 1.5, flex: 1 }}>{seg.text}</span>
+                    <span style={{ fontSize: 10, color: C.textDim, fontFamily: 'monospace', flexShrink: 0 }}>
+                      {seg.start_time}s~{seg.end_time}s
+                    </span>
+                  </div>
+                ))}
               </div>
+            )}
+          </div>
+        )}
+
+        {/* BGM 가이드 */}
+        {storyboard.bgm && (
+          <div style={{ marginTop: 16, background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              <span style={{ fontSize: 16 }}>🎵</span>
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: C.text, margin: 0 }}>BGM 가이드</h3>
+            </div>
+            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+              <div style={{ padding: '8px 14px', background: C.surface, borderRadius: 10 }}>
+                <span style={{ fontSize: 10, color: C.textDim, display: 'block', marginBottom: 2 }}>분위기</span>
+                <span style={{ fontSize: 13, color: C.text, fontWeight: 600 }}>{storyboard.bgm.mood}</span>
+              </div>
+              <div style={{ padding: '8px 14px', background: C.surface, borderRadius: 10 }}>
+                <span style={{ fontSize: 10, color: C.textDim, display: 'block', marginBottom: 2 }}>BPM</span>
+                <span style={{ fontSize: 13, color: C.text, fontWeight: 600 }}>{storyboard.bgm.bpm_range}</span>
+              </div>
+              <div style={{ padding: '8px 14px', background: C.surface, borderRadius: 10 }}>
+                <span style={{ fontSize: 10, color: C.textDim, display: 'block', marginBottom: 2 }}>볼륨 비율</span>
+                <span style={{ fontSize: 13, color: C.text, fontWeight: 600 }}>{storyboard.bgm.volume_ratio * 100}%</span>
+              </div>
+              {storyboard.bgm.reference && (
+                <div style={{ padding: '8px 14px', background: C.surface, borderRadius: 10 }}>
+                  <span style={{ fontSize: 10, color: C.textDim, display: 'block', marginBottom: 2 }}>레퍼런스</span>
+                  <span style={{ fontSize: 13, color: C.text, fontWeight: 600 }}>{storyboard.bgm.reference}</span>
+                </div>
+              )}
             </div>
           </div>
         )}
+
+        {/* 해시태그 */}
+        {storyboard.metadata?.hashtags?.length > 0 && (
+          <div style={{ marginTop: 16, background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              <span style={{ fontSize: 14, color: C.purple }}>#</span>
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: C.text, margin: 0 }}>업로드 메타데이터</h3>
+            </div>
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+              {storyboard.metadata.hashtags.map((tag, i) => (
+                <span key={i} style={{ padding: '4px 10px', background: `${C.purple}18`, borderRadius: 8, fontSize: 11, color: C.purple }}>{tag}</span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 하단 액션 */}
+        <div style={{ marginTop: 24, display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+          <button onClick={() => { setStoryboard(null); setTab('input') }} style={{
+            padding: '12px 28px', borderRadius: 10, border: `1px solid ${C.border}`,
+            background: C.card, color: C.textMuted, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+          }}>↻ 스토리보드 재생성</button>
+          <button onClick={() => {
+            const printContent = storyboard.scenes?.map(s => [
+              `── 씬 ${s.scene_no} [${s.section}] (${s.duration}초) ──`,
+              `📸 카메라: ${s.camera_angle || '-'}`,
+              `🌅 환경: ${s.set_environment || '-'}`,
+              `🎬 연기: ${s.acting_direction || '-'}`,
+              `💬 자막: ${s.subtitle_text || '-'}`,
+              `⏱️ 타이밍: ${s.subtitle_timing || '-'}`,
+              `🔀 전환: ${s.transition || '-'}`,
+              `🔊 음향: ${s.audio_guide || '-'}`,
+              `⏰ 촬영시간: ${s.estimated_shoot_time || '-'}`,
+              s.props ? `📦 준비물: ${Array.isArray(s.props) ? s.props.join(', ') : s.props}` : '',
+              s.director_note ? `📝 감독노트: ${s.director_note}` : '',
+            ].filter(Boolean).join('\n')).join('\n\n')
+
+            const fullText = [
+              `═══ ${storyboard.metadata?.title || product?.name} 촬영 스토리보드 ═══`,
+              `플랫폼: ${platform === 'shorts' ? 'YouTube Shorts' : 'Instagram Reels'}`,
+              `총 길이: ${totalDuration}초 | 씬 수: ${storyboard.scenes?.length}개`,
+              `훅 전략: ${storyboard.hook_strategy || '-'}`,
+              '',
+              printContent,
+              '',
+              `── 나레이션 ──`,
+              storyboard.narration?.full_script || '-',
+              '',
+              `── BGM ──`,
+              `분위기: ${storyboard.bgm?.mood || '-'} | BPM: ${storyboard.bgm?.bpm_range || '-'}`,
+            ].join('\n')
+
+            navigator.clipboard.writeText(fullText).then(() => {
+              alert('촬영 가이드 시트가 클립보드에 복사되었습니다!')
+            }).catch(() => {
+              const blob = new Blob([fullText], { type: 'text/plain' })
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url
+              a.download = `storyboard_${product?.id || 'meliens'}.txt`
+              a.click()
+              URL.revokeObjectURL(url)
+            })
+          }} style={{
+            padding: '12px 28px', borderRadius: 10, border: 'none',
+            background: `linear-gradient(135deg, ${C.accent}, ${C.green})`,
+            color: C.bg, fontSize: 13, fontWeight: 700, cursor: 'pointer',
+          }}>📋 촬영 가이드 시트 복사 / 다운로드</button>
+        </div>
       </div>
     )
   }
@@ -734,7 +629,7 @@ export default function StudioEngine() {
         background: `linear-gradient(180deg, ${C.surface} 0%, ${C.bg} 100%)`,
         padding: '14px 24px',
       }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+        <div style={{ maxWidth: 1400, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{
@@ -745,10 +640,10 @@ export default function StudioEngine() {
               }}>S</div>
               <div>
                 <h1 style={{ fontSize: 17, fontWeight: 800, margin: 0, letterSpacing: '-0.03em', color: C.text }}>
-                  MELIENS <span style={{ color: C.purple }}>AI STUDIO</span>
+                  MELIENS <span style={{ color: C.purple }}>STORYBOARD</span>
                 </h1>
                 <p style={{ fontSize: 10, color: C.textDim, margin: 0, letterSpacing: '0.1em' }}>
-                  SHORTFORM VIDEO STORYBOARD ENGINE
+                  Pentacle × AI SHOOTING GUIDE SHEET
                 </p>
               </div>
             </Link>
@@ -769,13 +664,12 @@ export default function StudioEngine() {
         </div>
       </header>
 
-      {/* Tabs */}
+      {/* Tabs — 2 tabs only */}
       <nav style={{ borderBottom: `1px solid ${C.border}`, background: C.surface }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', padding: '0 24px' }}>
+        <div style={{ maxWidth: 1400, margin: '0 auto', display: 'flex', padding: '0 24px' }}>
           {[
             { id: 'input', label: '제품 & 설정', icon: '◈' },
-            { id: 'storyboard', label: '스토리보드', icon: '🎬' },
-            { id: 'output', label: '최종 출력', icon: '✅' },
+            { id: 'storyboard', label: '촬영 스토리보드', icon: '📋' },
           ].map(t => (
             <button key={t.id} onClick={() => setTab(t.id)} style={{
               padding: '13px 24px', background: 'transparent',
@@ -796,7 +690,7 @@ export default function StudioEngine() {
 
       {/* Progress */}
       {loading && (
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '16px 24px 0' }}>
+        <div style={{ maxWidth: 1400, margin: '0 auto', padding: '16px 24px 0' }}>
           <div style={{ background: C.card, borderRadius: 10, padding: 14, border: `1px solid ${C.border}` }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
               <span style={{ fontSize: 12, color: C.textMuted }}>{stage}</span>
@@ -811,7 +705,7 @@ export default function StudioEngine() {
 
       {/* Error */}
       {error && (
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '16px 24px 0' }}>
+        <div style={{ maxWidth: 1400, margin: '0 auto', padding: '16px 24px 0' }}>
           <div style={{ padding: '12px 16px', background: `${C.red}12`, border: `1px solid ${C.red}33`, borderRadius: 10, fontSize: 13, color: C.red, display: 'flex', justifyContent: 'space-between' }}>
             {error}
             <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', color: C.red, cursor: 'pointer', fontSize: 14 }}>✕</button>
@@ -819,65 +713,16 @@ export default function StudioEngine() {
         </div>
       )}
 
-      {/* Content */}
-      <main style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 24px' }}>
+      {/* Content — full width */}
+      <main style={{ maxWidth: 1400, margin: '0 auto', padding: '24px 24px' }}>
         {tab === 'input' && renderInput()}
         {tab === 'storyboard' && renderStoryboard()}
-        {tab === 'output' && (
-          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 40, textAlign: 'center' }}>
-            {videoUrl ? (
-              <>
-                <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
-                <h2 style={{ fontSize: 20, fontWeight: 800, color: C.text, marginBottom: 8 }}>영상 생성 완료!</h2>
-                <p style={{ fontSize: 13, color: C.textMuted, marginBottom: 24 }}>
-                  {storyboard?.metadata?.title || product?.name}
-                </p>
-                {assetErrors && Object.keys(assetErrors).length > 0 && (
-                  <div style={{
-                    textAlign: 'left', marginBottom: 20, padding: 14,
-                    background: `${C.orange}0a`, border: `1px solid ${C.orange}33`,
-                    borderRadius: 10, maxWidth: 480, margin: '0 auto 20px',
-                  }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: C.orange, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span>⚠</span> 일부 씬에서 AI 영상 생성 문제 발생
-                    </div>
-                    {Object.entries(assetErrors).map(([sceneNo, errMsg]) => (
-                      <div key={sceneNo} style={{ fontSize: 11, color: C.textMuted, marginBottom: 4, display: 'flex', gap: 8 }}>
-                        <span style={{ color: C.orange, fontWeight: 700, flexShrink: 0 }}>씬 #{sceneNo}</span>
-                        <span>{errMsg}</span>
-                      </div>
-                    ))}
-                    <div style={{ fontSize: 10, color: C.textDim, marginTop: 8 }}>
-                      문제 씬은 정적 이미지로 대체되었습니다.
-                    </div>
-                  </div>
-                )}
-                <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginBottom: 24 }}>
-                  <div style={{ padding: '7px 14px', background: C.surface, borderRadius: 8, fontSize: 12 }}>
-                    <span style={{ color: C.textDim }}>길이 </span>
-                    <span style={{ color: C.text, fontWeight: 700 }}>{storyboard?.duration_target || targetDuration}초</span>
-                  </div>
-                </div>
-                <a href={videoUrl} target="_blank" rel="noopener noreferrer" style={{
-                  display: 'inline-block', padding: '12px 28px', borderRadius: 10, border: 'none',
-                  background: `linear-gradient(135deg, ${C.purple}, ${C.accent})`, color: '#fff',
-                  fontSize: 14, fontWeight: 700, textDecoration: 'none',
-                }}>📥 영상 다운로드</a>
-              </>
-            ) : (
-              <>
-                <div style={{ fontSize: 48, opacity: 0.3, marginBottom: 12 }}>🎬</div>
-                <p style={{ fontSize: 14, color: C.textMuted }}>스토리보드 탭에서 &quot;영상 생성&quot; 버튼을 눌러주세요</p>
-              </>
-            )}
-          </div>
-        )}
       </main>
 
       {/* Footer */}
       <footer style={{ borderTop: `1px solid ${C.border}`, padding: '14px 24px', textAlign: 'center' }}>
         <p style={{ fontSize: 11, color: C.textDim, margin: 0 }}>
-          MELIENS AI STUDIO v1.0 — Discovery Engine × ShortForm Factory Pipeline
+          Pentacle × AI Algorithm Performance Platform — MELIENS STORYBOARD v2.0
         </p>
       </footer>
     </div>
