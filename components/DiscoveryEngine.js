@@ -69,6 +69,7 @@ function EmptyState({ icon, message, action, onAction }) {
 // ─── MAIN ENGINE COMPONENT ───
 
 export default function DiscoveryEngine() {
+  // activeTab: 'insight' | 0(제품분석) | 1(맥락발견) | 2(숏폼제작) | 3(시즌전략)
   const [activeTab, setActiveTab] = useState(0)
   const [selectedProduct, setSelectedProduct] = useState(null)
   const [matchedContexts, setMatchedContexts] = useState(null)
@@ -86,22 +87,21 @@ export default function DiscoveryEngine() {
   const [channelError, setChannelError] = useState(null)
   const [channelSort, setChannelSort] = useState({ key: 'viewCount', dir: 'desc' })
 
-  // ─── TAB CONFIG (NEW ORDER) ───
-  // ① AI 성과 Insight → ② 제품 분석 → ③ 맥락 발견 → ④ 숏폼 제작 → ⑤ 시즌 전략
-  const tabs = [
-    { label: 'AI 성과 Insight', icon: '◉', step: 1 },
-    { label: '제품 분석', icon: '◈', step: 2 },
-    { label: '맥락 발견', icon: '⬡', step: 3 },
-    { label: '숏폼 제작', icon: '▸', step: 4 },
-    { label: '시즌 전략', icon: '◐', step: 5 },
+  // ─── TAB CONFIG ───
+  // 프로세스 스텝: ① 제품 분석 → ② 맥락 발견 → ③ 숏폼 제작 → ④ 시즌 전략
+  // AI 성과 Insight는 별도 대시보드 탭 (스텝 번호 없음)
+  const stepTabs = [
+    { label: '제품 분석', icon: '◈', step: 1 },
+    { label: '맥락 발견', icon: '⬡', step: 2 },
+    { label: '숏폼 제작', icon: '▸', step: 3 },
+    { label: '시즌 전략', icon: '◐', step: 4 },
   ]
 
-  // 완료 단계 추적 (channel loaded, product selected, context matched, ideas generated)
+  // 완료 단계 추적 (product selected, context matched, ideas generated, season)
   const completedSteps = new Set()
-  if (channelData) completedSteps.add(0)
-  if (selectedProduct) completedSteps.add(1)
-  if (matchedContexts) completedSteps.add(2)
-  if (generatedIdeas) completedSteps.add(3)
+  if (selectedProduct) completedSteps.add(0)
+  if (matchedContexts) completedSteps.add(1)
+  if (generatedIdeas) completedSteps.add(2)
 
   // ─── AI CALLS ───
 
@@ -225,7 +225,7 @@ export default function DiscoveryEngine() {
     setSelectedProduct(p)
     setMatchedContexts(null)
     setGeneratedIdeas(null)
-    setActiveTab(2) // 맥락 발견 탭으로 이동
+    setActiveTab(1) // 맥락 발견 탭으로 이동
   }
 
   // ─── CHANNEL ANALYSIS DATA FETCH ───
@@ -244,9 +244,9 @@ export default function DiscoveryEngine() {
     setIsLoadingChannel(false)
   }, [channelData, isLoadingChannel])
 
-  // AI 성과 Insight가 첫 탭이므로, 사이트 진입 시 바로 로드
+  // AI 성과 Insight 탭 진입 시 채널 데이터 로드
   useEffect(() => {
-    if (activeTab === 0 && !channelData && !isLoadingChannel) {
+    if (activeTab === 'insight' && !channelData && !isLoadingChannel) {
       fetchChannelData()
     }
   }, [activeTab, channelData, isLoadingChannel, fetchChannelData])
@@ -798,7 +798,7 @@ export default function DiscoveryEngine() {
   // ─── TAB 2: 맥락 발견 (REDESIGNED) ───
   function renderContextDiscovery() {
     if (!selectedProduct) {
-      return <EmptyState icon="⬡" message="제품 분석 탭에서 제품을 먼저 선택해주세요" action="제품 선택하러 가기 →" onAction={() => setActiveTab(1)} />
+      return <EmptyState icon="⬡" message="제품 분석 탭에서 제품을 먼저 선택해주세요" action="제품 선택하러 가기 →" onAction={() => setActiveTab(0)} />
     }
 
     const cc = catColor(selectedProduct.category)
@@ -979,7 +979,7 @@ export default function DiscoveryEngine() {
               {/* Actions */}
               <div style={{ textAlign: 'center', marginTop: 24 }}>
                 <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-                  <button onClick={() => { setActiveTab(3) }} style={{
+                  <button onClick={() => { setActiveTab(2) }} style={{
                     padding: '14px 40px', background: `linear-gradient(135deg, ${C.accent}, ${C.green})`,
                     color: C.bg, border: 'none', borderRadius: 12, cursor: 'pointer', fontSize: 15, fontWeight: 700, transition: 'all 0.2s ease',
                   }}>▸ 이 맥락으로 숏폼 아이디어 생성하기</button>
@@ -996,7 +996,7 @@ export default function DiscoveryEngine() {
   // ─── TAB 3: 숏폼 제작 ───
   function renderShortformFactory() {
     if (!selectedProduct || !matchedContexts?.length) {
-      return <EmptyState icon="▸" message="맥락 발견을 먼저 실행해주세요" action="맥락 발견으로 →" onAction={() => setActiveTab(2)} />
+      return <EmptyState icon="▸" message="맥락 발견을 먼저 실행해주세요" action="맥락 발견으로 →" onAction={() => setActiveTab(1)} />
     }
     const ctx = matchedContexts[selectedContextIdx]
 
@@ -1081,7 +1081,7 @@ export default function DiscoveryEngine() {
             </div>
             <div style={{ textAlign: 'center', marginTop: 24, display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
               <button onClick={() => setGeneratedIdeas(null)} style={{ padding: '10px 28px', background: C.card, color: C.textMuted, border: `1px solid ${C.border}`, borderRadius: 10, cursor: 'pointer', fontSize: 13 }}>↻ 같은 맥락으로 재생성</button>
-              <button onClick={() => { setActiveTab(2); setGeneratedIdeas(null) }} style={{ padding: '10px 28px', background: C.card, color: C.textMuted, border: `1px solid ${C.border}`, borderRadius: 10, cursor: 'pointer', fontSize: 13 }}>⬡ 다른 맥락 선택하러</button>
+              <button onClick={() => { setActiveTab(1); setGeneratedIdeas(null) }} style={{ padding: '10px 28px', background: C.card, color: C.textMuted, border: `1px solid ${C.border}`, borderRadius: 10, cursor: 'pointer', fontSize: 13 }}>⬡ 다른 맥락 선택하러</button>
               <button onClick={() => {
                 const studioData = { product: selectedProduct, context: matchedContexts[selectedContextIdx], ideas: generatedIdeas }
                 localStorage.setItem('meliens_studio_data', JSON.stringify(studioData))
@@ -1174,7 +1174,7 @@ export default function DiscoveryEngine() {
         padding: '14px 24px',
       }}>
         <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }} onClick={() => setActiveTab(0)}>
             <div style={{
               width: 34, height: 34, borderRadius: 9,
               background: `linear-gradient(135deg, ${C.accent}, ${C.purple})`,
@@ -1204,60 +1204,83 @@ export default function DiscoveryEngine() {
         </div>
       </header>
 
-      {/* STEP INDICATOR NAV */}
+      {/* STEP INDICATOR NAV + AI 성과 Insight (별도 탭) */}
       <nav style={{ borderBottom: `1px solid ${C.border}`, background: C.surface }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', padding: '0 24px', overflowX: 'auto', justifyContent: 'center' }}>
-          {tabs.map((tab, i) => {
-            const isActive = activeTab === i
-            const isCompleted = completedSteps.has(i) && !isActive
-            return (
-              <div key={i} style={{ display: 'flex', alignItems: 'center' }}>
-                <button onClick={() => setActiveTab(i)} style={{
-                  padding: '14px 20px', background: 'transparent',
-                  border: 'none', borderBottom: `2px solid ${isActive ? C.accent : 'transparent'}`,
-                  cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10,
-                  transition: 'all 0.2s ease',
-                }}>
-                  {/* Step circle */}
-                  <span style={{
-                    width: 26, height: 26, borderRadius: '50%',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 12, fontWeight: 700, flexShrink: 0,
-                    background: isActive ? C.accent : isCompleted ? `${C.green}20` : C.border,
-                    color: isActive ? C.bg : isCompleted ? C.green : C.textDim,
-                    border: isActive ? `2px solid ${C.accent}` : isCompleted ? `2px solid ${C.green}60` : `2px solid ${C.border}`,
-                    transition: 'all 0.3s ease',
+        <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', padding: '0 24px', overflowX: 'auto', justifyContent: 'space-between', alignItems: 'center' }}>
+          {/* Process Steps */}
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            {stepTabs.map((tab, i) => {
+              const isActive = activeTab === i
+              const isCompleted = completedSteps.has(i) && !isActive
+              return (
+                <div key={i} style={{ display: 'flex', alignItems: 'center' }}>
+                  <button onClick={() => setActiveTab(i)} style={{
+                    padding: '14px 20px', background: 'transparent',
+                    border: 'none', borderBottom: `2px solid ${isActive ? C.accent : 'transparent'}`,
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10,
+                    transition: 'all 0.2s ease',
                   }}>
-                    {isCompleted ? '✓' : tab.step}
-                  </span>
-                  <span style={{
-                    fontSize: 13, fontWeight: isActive ? 700 : 400,
-                    color: isActive ? C.accent : isCompleted ? C.green : C.textMuted,
-                    whiteSpace: 'nowrap',
-                  }}>
-                    {tab.label}
-                  </span>
-                </button>
-                {/* Connector line */}
-                {i < tabs.length - 1 && (
-                  <div style={{
-                    width: 24, height: 2, flexShrink: 0,
-                    background: completedSteps.has(i) ? `${C.green}40` : C.border,
-                  }} />
-                )}
-              </div>
-            )
-          })}
+                    {/* Step circle */}
+                    <span style={{
+                      width: 26, height: 26, borderRadius: '50%',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 12, fontWeight: 700, flexShrink: 0,
+                      background: isActive ? C.accent : isCompleted ? `${C.green}20` : C.border,
+                      color: isActive ? C.bg : isCompleted ? C.green : C.textDim,
+                      border: isActive ? `2px solid ${C.accent}` : isCompleted ? `2px solid ${C.green}60` : `2px solid ${C.border}`,
+                      transition: 'all 0.3s ease',
+                    }}>
+                      {isCompleted ? '✓' : tab.step}
+                    </span>
+                    <span style={{
+                      fontSize: 13, fontWeight: isActive ? 700 : 400,
+                      color: isActive ? C.accent : isCompleted ? C.green : C.textMuted,
+                      whiteSpace: 'nowrap',
+                    }}>
+                      {tab.label}
+                    </span>
+                  </button>
+                  {/* Connector line */}
+                  {i < stepTabs.length - 1 && (
+                    <div style={{
+                      width: 24, height: 2, flexShrink: 0,
+                      background: completedSteps.has(i) ? `${C.green}40` : C.border,
+                    }} />
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          {/* AI 성과 Insight — 별도 대시보드 탭 (스텝 번호 없음) */}
+          <button onClick={() => setActiveTab('insight')} style={{
+            padding: '14px 16px', background: 'transparent',
+            border: 'none', borderBottom: `2px solid ${activeTab === 'insight' ? C.purple : 'transparent'}`,
+            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
+            transition: 'all 0.2s ease', marginLeft: 16,
+          }}>
+            <span style={{
+              fontSize: 16, color: activeTab === 'insight' ? C.purple : C.textDim,
+              transition: 'all 0.3s ease',
+            }}>◉</span>
+            <span style={{
+              fontSize: 13, fontWeight: activeTab === 'insight' ? 700 : 400,
+              color: activeTab === 'insight' ? C.purple : C.textDim,
+              whiteSpace: 'nowrap',
+            }}>
+              AI 성과 Insight
+            </span>
+          </button>
         </div>
       </nav>
 
       {/* CONTENT */}
       <main style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 24px' }}>
-        {activeTab === 0 && renderChannelInsight()}
-        {activeTab === 1 && renderProductAnalysis()}
-        {activeTab === 2 && renderContextDiscovery()}
-        {activeTab === 3 && renderShortformFactory()}
-        {activeTab === 4 && renderSeasonStrategy()}
+        {activeTab === 'insight' && renderChannelInsight()}
+        {activeTab === 0 && renderProductAnalysis()}
+        {activeTab === 1 && renderContextDiscovery()}
+        {activeTab === 2 && renderShortformFactory()}
+        {activeTab === 3 && renderSeasonStrategy()}
       </main>
 
       {/* FOOTER */}
