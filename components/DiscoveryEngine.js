@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { PRODUCTS, CONTEXT_DIMS, SEASON_DATA, SF_TEMPLATES, SF_TYPES } from '@/lib/data'
 
@@ -83,11 +83,17 @@ export default function DiscoveryEngine() {
   const [dataSource, setDataSource] = useState(null) // 'ai' | 'fallback'
   const router = useRouter()
 
+  const [channelData, setChannelData] = useState(null)
+  const [isLoadingChannel, setIsLoadingChannel] = useState(false)
+  const [channelError, setChannelError] = useState(null)
+  const [channelSort, setChannelSort] = useState({ key: 'viewCount', dir: 'desc' })
+
   const tabs = [
     { label: '제품 DNA', icon: '◈' },
     { label: '맥락 매칭 엔진', icon: '⬡' },
     { label: '숏폼 팩토리', icon: '▸' },
     { label: '시즌 캘린더', icon: '◐' },
+    { label: '채널 분석', icon: '◉' },
   ]
 
   // ─── AI CALLS ───
@@ -100,10 +106,19 @@ export default function DiscoveryEngine() {
     setDataSource(null)
     console.log(`[DiscoveryEngine] 맥락 매칭 시작 — 제품: ${product.name} (${product.id}), 유형 필터: ${sfTypeFilter || 'AI 자동'}`)
     try {
+      // 채널 분석 인사이트가 있으면 함께 전달
+      const channelInsights = channelData?.insights ? {
+        avgViews: channelData.insights.avgViews,
+        avgEngagement: channelData.insights.avgEngagement,
+        top3: channelData.insights.top3,
+        patterns: channelData.insights.patterns,
+        productStats: channelData.insights.productStats,
+      } : null
+
       const res = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'context_match', product, sfTypeFilter }),
+        body: JSON.stringify({ type: 'context_match', product, sfTypeFilter, channelInsights }),
       })
       const data = await res.json()
       console.log(`[DiscoveryEngine] API 응답 수신 — 상태: ${res.status}, 소스: ${data.source}, 결과: ${data.result ? '성공' : '실패'}`)
@@ -830,6 +845,305 @@ export default function DiscoveryEngine() {
     )
   }
 
+  // ─── CHANNEL ANALYSIS DATA FETCH ───
+  const fetchChannelData = useCallback(async () => {
+    if (channelData || isLoadingChannel) return
+    setIsLoadingChannel(true)
+    setChannelError(null)
+    try {
+      const res = await fetch('/api/youtube')
+      const data = await res.json()
+      if (!data.success) throw new Error(data.error || '채널 데이터 로드 실패')
+      setChannelData(data)
+    } catch (e) {
+      console.error('[DiscoveryEngine] Channel fetch error:', e)
+      setChannelError(e.message)
+    }
+    setIsLoadingChannel(false)
+  }, [channelData, isLoadingChannel])
+
+  useEffect(() => {
+    if (activeTab === 4 && !channelData && !isLoadingChannel) {
+      fetchChannelData()
+    }
+  }, [activeTab, channelData, isLoadingChannel, fetchChannelData])
+
+  // ─── TAB 4: CHANNEL ANALYSIS ───
+  function renderChannelAnalysis() {
+    if (isLoadingChannel) {
+      return (
+        <div style={{ textAlign: 'center', padding: 80, color: C.textMuted }}>
+          <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.4 }}>◉</div>
+          <p style={{ fontSize: 16 }}>YouTube 채널 데이터 로딩 중...</p>
+          <p style={{ fontSize: 12, color: C.textDim }}>YouTube Data API v3에서 쇼츠 성과를 가져오고 있습니다</p>
+        </div>
+      )
+    }
+
+    if (channelError) {
+      return (
+        <div style={{ textAlign: 'center', padding: 60 }}>
+          <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.3 }}>⚠</div>
+          <p style={{ fontSize: 14, color: C.red, marginBottom: 12 }}>{channelError}</p>
+          <button onClick={() => { setChannelData(null); setChannelError(null) }} style={{
+            padding: '8px 24px', background: C.accentDim, color: C.accent,
+            border: `1px solid ${C.accent}44`, borderRadius: 8, cursor: 'pointer', fontSize: 13,
+          }}>다시 시도</button>
+        </div>
+      )
+    }
+
+    if (!channelData) {
+      return <EmptyState icon="◉" message="채널 데이터를 불러오는 중..." />
+    }
+
+    const { channel, videos, insights } = channelData
+    const PRODUCT_NAMES = {
+      clenser: '진동클렌저', lint: '보풀제거기', stand: '거치대',
+      humidifier: '가습기', nail: '네일드릴', massager: '안마기',
+      toothbrush: '전동칫솔', epilator: '제모기', unknown: '기타',
+    }
+    const PRODUCT_EMOJIS = {
+      clenser: '🧴', lint: '🧹', stand: '📱', humidifier: '💧',
+      nail: '💅', massager: '💆', toothbrush: '🪥', epilator: '✨', unknown: '📦',
+    }
+
+    // 정렬 처리
+    const sortedVideos = [...videos].sort((a, b) => {
+      const mul = channelSort.dir === 'desc' ? -1 : 1
+      if (channelSort.key === 'title') return mul * a.title.localeCompare(b.title)
+      if (channelSort.key === 'publishedAt') return mul * (new Date(a.publishedAt) - new Date(b.publishedAt))
+      return mul * ((a[channelSort.key] || 0) - (b[channelSort.key] || 0))
+    })
+
+    const handleSort = (key) => {
+      setChannelSort(prev => ({
+        key,
+        dir: prev.key === key && prev.dir === 'desc' ? 'asc' : 'desc',
+      }))
+    }
+    const sortIcon = (key) => channelSort.key === key ? (channelSort.dir === 'desc' ? ' ▾' : ' ▴') : ''
+
+    return (
+      <div>
+        <SectionTitle icon="◉" title="채널 성과 분석" subtitle="YouTube @meliens_official 쇼츠 성과 데이터 기반 인사이트" />
+
+        {/* Channel Overview */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
+          {[
+            { label: '구독자', value: channel.subscriberCount.toLocaleString(), color: C.red },
+            { label: '총 조회수', value: channel.totalViews.toLocaleString(), color: C.blue },
+            { label: '쇼츠 수', value: `${videos.length}개`, color: C.accent },
+            { label: '평균 조회수', value: insights.avgViews?.toLocaleString() || '0', color: C.green },
+          ].map((stat, i) => (
+            <div key={i} style={{
+              background: C.card, border: `1px solid ${C.border}`, borderRadius: 12,
+              padding: 16, textAlign: 'center',
+            }}>
+              <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 6, letterSpacing: '0.05em' }}>{stat.label}</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: stat.color }}>{stat.value}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* AI Insights Panel */}
+        <div style={{
+          background: `linear-gradient(135deg, ${C.purple}12, ${C.accent}08)`,
+          border: `1px solid ${C.purple}30`, borderRadius: 14, padding: 20, marginBottom: 24,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+            <span style={{ fontSize: 16 }}>🧠</span>
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: C.purple, margin: 0 }}>AI 인사이트</h3>
+          </div>
+
+          {/* Patterns */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+            {insights.patterns?.map((p, i) => (
+              <div key={i} style={{
+                display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px',
+                background: C.card, borderRadius: 8, border: `1px solid ${C.border}`,
+              }}>
+                <span style={{
+                  fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 6,
+                  background: p.impact === 'high' ? `${C.green}20` : p.impact === 'medium' ? `${C.orange}20` : `${C.textDim}20`,
+                  color: p.impact === 'high' ? C.green : p.impact === 'medium' ? C.orange : C.textDim,
+                }}>{p.impact.toUpperCase()}</span>
+                <span style={{ fontSize: 12, color: C.text, flex: 1 }}>{p.insight}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Recommendations */}
+          {insights.recommendations?.length > 0 && (
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.accent, marginBottom: 8, letterSpacing: '0.05em' }}>추천 액션</div>
+              {insights.recommendations.map((r, i) => (
+                <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 6 }}>
+                  <span style={{ color: C.accent, fontSize: 12, flexShrink: 0 }}>→</span>
+                  <span style={{ fontSize: 12, color: C.textMuted, lineHeight: 1.5 }}>{r}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Two columns: Product Stats + TOP/Bottom */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+          {/* Product Performance */}
+          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 18 }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: C.text, margin: '0 0 14px 0', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ color: C.accent }}>◈</span> 제품별 성과 비교
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {Object.entries(insights.productStats || {})
+                .filter(([id]) => id !== 'unknown')
+                .sort((a, b) => b[1].avgViews - a[1].avgViews)
+                .map(([productId, stats]) => (
+                  <div key={productId} style={{
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
+                    background: C.surface, borderRadius: 10, border: `1px solid ${C.border}`,
+                  }}>
+                    <span style={{ fontSize: 20 }}>{PRODUCT_EMOJIS[productId] || '📦'}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{PRODUCT_NAMES[productId] || productId}</div>
+                      <div style={{ fontSize: 10, color: C.textDim }}>{stats.count}개 영상</div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: C.accent }}>{stats.avgViews.toLocaleString()}</div>
+                      <div style={{ fontSize: 10, color: C.textDim }}>평균 조회</div>
+                    </div>
+                    <div style={{
+                      width: 48, textAlign: 'center', padding: '4px 0', borderRadius: 8,
+                      background: stats.engagementRate > 5 ? `${C.green}18` : stats.engagementRate > 2 ? `${C.orange}18` : `${C.textDim}18`,
+                      color: stats.engagementRate > 5 ? C.green : stats.engagementRate > 2 ? C.orange : C.textDim,
+                      fontSize: 11, fontWeight: 700,
+                    }}>{stats.engagementRate}%</div>
+                  </div>
+                ))}
+              {Object.keys(insights.productStats || {}).filter(id => id !== 'unknown').length === 0 && (
+                <div style={{ fontSize: 12, color: C.textDim, textAlign: 'center', padding: 20 }}>제품 매칭 데이터 없음</div>
+              )}
+            </div>
+          </div>
+
+          {/* TOP / Bottom Videos */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {/* TOP 3 */}
+            <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 18 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: C.green, margin: '0 0 12px 0' }}>🏆 TOP 3 성과 영상</h3>
+              {insights.top3?.map((v, i) => (
+                <div key={v.videoId} style={{
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0',
+                  borderBottom: i < 2 ? `1px solid ${C.border}` : 'none',
+                }}>
+                  <span style={{
+                    width: 22, height: 22, borderRadius: '50%', fontSize: 11, fontWeight: 700,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: i === 0 ? `${C.orange}30` : `${C.border}`,
+                    color: i === 0 ? C.orange : C.textMuted,
+                  }}>{i + 1}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, color: C.text, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.title}</div>
+                  </div>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: C.green, flexShrink: 0 }}>{v.viewCount.toLocaleString()}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Bottom 3 */}
+            <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 18 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: C.red, margin: '0 0 12px 0' }}>📉 하위 3 영상</h3>
+              {insights.bottom3?.map((v, i) => (
+                <div key={v.videoId} style={{
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0',
+                  borderBottom: i < 2 ? `1px solid ${C.border}` : 'none',
+                }}>
+                  <span style={{ width: 22, height: 22, borderRadius: '50%', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', background: C.border, color: C.textDim }}>-</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, color: C.textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.title}</div>
+                  </div>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: C.red, flexShrink: 0 }}>{v.viewCount.toLocaleString()}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Video Performance Table */}
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden' }}>
+          <div style={{ padding: '14px 18px', borderBottom: `1px solid ${C.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: C.text, margin: 0 }}>영상별 성과 테이블</h3>
+            <button onClick={() => { setChannelData(null); setChannelError(null) }} style={{
+              padding: '5px 14px', background: C.surface, color: C.textMuted,
+              border: `1px solid ${C.border}`, borderRadius: 6, cursor: 'pointer', fontSize: 11,
+            }}>↻ 새로고침</button>
+          </div>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <thead>
+                <tr style={{ borderBottom: `1px solid ${C.border}` }}>
+                  {[
+                    { key: 'title', label: '제목' },
+                    { key: 'productId', label: '제품' },
+                    { key: 'viewCount', label: '조회수' },
+                    { key: 'likeCount', label: '좋아요' },
+                    { key: 'commentCount', label: '댓글' },
+                    { key: 'durationSec', label: '길이' },
+                    { key: 'publishedAt', label: '업로드' },
+                  ].map(col => (
+                    <th key={col.key} onClick={() => handleSort(col.key)} style={{
+                      padding: '10px 12px', textAlign: col.key === 'title' ? 'left' : 'right',
+                      color: channelSort.key === col.key ? C.accent : C.textMuted,
+                      fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
+                      userSelect: 'none', letterSpacing: '0.03em',
+                    }}>
+                      {col.label}{sortIcon(col.key)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {sortedVideos.map((v, i) => {
+                  const isTop = insights.top3?.some(t => t.videoId === v.videoId)
+                  const isBottom = insights.bottom3?.some(t => t.videoId === v.videoId)
+                  return (
+                    <tr key={v.videoId} style={{
+                      borderBottom: `1px solid ${C.border}`,
+                      background: isTop ? `${C.green}06` : isBottom ? `${C.red}06` : (i % 2 === 0 ? 'transparent' : C.surface),
+                    }}>
+                      <td style={{ padding: '10px 12px', maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: C.text }}>
+                        {isTop && <span style={{ color: C.green, marginRight: 4 }}>▲</span>}
+                        {isBottom && <span style={{ color: C.red, marginRight: 4 }}>▼</span>}
+                        <a href={v.url} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }} title={v.title}>{v.title}</a>
+                      </td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right' }}>
+                        <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 8, background: `${C.accent}15`, color: C.accent }}>
+                          {PRODUCT_EMOJIS[v.productId] || ''} {PRODUCT_NAMES[v.productId] || '기타'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600, color: v.viewCount > insights.avgViews ? C.green : C.textMuted }}>
+                        {v.viewCount.toLocaleString()}
+                      </td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', color: C.textMuted }}>{v.likeCount.toLocaleString()}</td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', color: C.textMuted }}>{v.commentCount.toLocaleString()}</td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', color: C.textDim, fontFamily: 'monospace' }}>{v.durationSec}s</td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', color: C.textDim, whiteSpace: 'nowrap' }}>
+                        {new Date(v.publishedAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+          {videos.length === 0 && (
+            <div style={{ padding: 40, textAlign: 'center', color: C.textDim, fontSize: 13 }}>쇼츠 영상이 없습니다</div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   // ─── MAIN RENDER ───
   return (
     <div style={{ background: C.bg, minHeight: '100vh' }}>
@@ -895,6 +1209,7 @@ export default function DiscoveryEngine() {
         {activeTab === 1 && renderContextMatrix()}
         {activeTab === 2 && renderShortformFactory()}
         {activeTab === 3 && renderSeasonCalendar()}
+        {activeTab === 4 && renderChannelAnalysis()}
       </main>
 
       {/* FOOTER */}

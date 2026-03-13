@@ -22,7 +22,7 @@ function extractJSON(text) {
 
 export async function POST(request) {
   try {
-    const { type, product, context, sfTypeFilter } = await request.json()
+    const { type, product, context, sfTypeFilter, channelInsights } = await request.json()
 
     const apiKey = process.env.ANTHROPIC_API_KEY
     if (!apiKey) {
@@ -44,6 +44,27 @@ export async function POST(request) {
         ? product.voc_insights.map((v, i) => `  ${i + 1}. ${v}`).join('\n')
         : '(없음)'
 
+      // 채널 분석 인사이트 블록 구성
+      const channelRef = channelInsights
+        ? (() => {
+            const lines = [`  평균 조회수: ${channelInsights.avgViews?.toLocaleString() || 'N/A'}`, `  평균 인게이지먼트: ${channelInsights.avgEngagement || 'N/A'}%`]
+            if (channelInsights.top3?.length) {
+              lines.push('  TOP 성과 영상:')
+              channelInsights.top3.forEach((v, i) => lines.push(`    ${i + 1}. "${v.title}" — 조회수 ${v.viewCount.toLocaleString()}`))
+            }
+            if (channelInsights.patterns?.length) {
+              lines.push('  성과 패턴:')
+              channelInsights.patterns.forEach(p => lines.push(`    - [${p.impact}] ${p.insight}`))
+            }
+            const productId = product.id
+            if (channelInsights.productStats?.[productId]) {
+              const ps = channelInsights.productStats[productId]
+              lines.push(`  이 제품(${productId}) 채널 성과: ${ps.count}개 영상, 평균 조회수 ${ps.avgViews.toLocaleString()}, 인게이지먼트 ${ps.engagementRate}%`)
+            }
+            return lines.join('\n')
+          })()
+        : '(없음)'
+
       prompt = `당신은 발견 커머스(Discovery Commerce) 숏폼 콘텐츠 전문가입니다.
 
 다음 제품에 대해 구매 전환 확률이 높은 "날카로운 맥락 조합" TOP 9를 JSON으로 생성하세요.
@@ -57,6 +78,9 @@ ${contextRef}
 
 [참고: 실구매자 VOC 인사이트]
 ${vocRef}
+
+[참고: YouTube 채널 성과 분석]
+${channelRef}
 
 ═══ 3단계 아이디어 도출 프로세스 ═══
 반드시 아래 3단계를 순서대로 따르세요:
@@ -129,6 +153,10 @@ ${sfTypeFilter ? `사용자가 유형 "${sfTypeFilter}"을 선택했습니다. 9
 7. ai_producible: 이 아이디어를 AI 영상(fal.ai Kling/FLUX)으로 100% 제작 가능한지 판단하세요.
    - true: 제품 클로즈업, Before/After, 이미지 기반 모션 등 AI로 생성 가능한 장면 위주
    - false: 실제 사람 연기, 특정 장소 로케이션, 실험/시연 촬영 등 실사 촬영 필요
+8. YouTube 채널 성과 데이터가 있으면 적극 참고하세요.
+   - TOP 성과 영상의 포맷/주제/훅을 분석하여 유사한 패턴 활용
+   - 하위 성과 영상의 패턴은 피하세요
+   - 해당 제품의 채널 성과가 있으면 어떤 각도가 효과적이었는지 반영
 
 반드시 아래 JSON 형식으로만 응답하세요. 다른 텍스트 없이 JSON만:
 [
