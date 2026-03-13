@@ -110,9 +110,14 @@ export default function DiscoveryEngine() {
       const channelInsights = channelData?.insights ? {
         avgViews: channelData.insights.avgViews,
         avgEngagement: channelData.insights.avgEngagement,
+        avgLikeRate: channelData.insights.avgLikeRate,
         top3: channelData.insights.top3,
         patterns: channelData.insights.patterns,
         productStats: channelData.insights.productStats,
+        typeStats: channelData.insights.typeStats,
+        hookStats: channelData.insights.hookStats,
+        thumbnailStats: channelData.insights.thumbnailStats,
+        deepInsights: channelData.insights.deepInsights,
       } : null
 
       const res = await fetch('/api/ai', {
@@ -924,29 +929,54 @@ export default function DiscoveryEngine() {
     }
     const sortIcon = (key) => channelSort.key === key ? (channelSort.dir === 'desc' ? ' ▾' : ' ▴') : ''
 
+    // 바 차트 헬퍼
+    const StatBar = ({ value, max, color }) => (
+      <div style={{ flex: 1, height: 6, background: C.border, borderRadius: 3, overflow: 'hidden' }}>
+        <div style={{ width: `${max > 0 ? (value / max * 100) : 0}%`, height: '100%', background: color, borderRadius: 3, transition: 'width 0.6s ease' }} />
+      </div>
+    )
+
     return (
       <div>
         <SectionTitle icon="◉" title="채널 성과 분석" subtitle="YouTube @meliens_official 쇼츠 성과 데이터 기반 인사이트" />
 
-        {/* Channel Overview */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
+        {/* Channel Overview — 6 stats */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 10, marginBottom: 24 }}>
           {[
             { label: '구독자', value: channel.subscriberCount.toLocaleString(), color: C.red },
             { label: '총 조회수', value: channel.totalViews.toLocaleString(), color: C.blue },
             { label: '쇼츠 수', value: `${videos.length}개`, color: C.accent },
             { label: '평균 조회수', value: insights.avgViews?.toLocaleString() || '0', color: C.green },
+            { label: '좋아요율', value: `${insights.avgLikeRate || 0}%`, color: C.orange },
+            { label: '인게이지먼트', value: `${insights.avgEngagement || 0}%`, color: C.purple },
           ].map((stat, i) => (
             <div key={i} style={{
               background: C.card, border: `1px solid ${C.border}`, borderRadius: 12,
-              padding: 16, textAlign: 'center',
+              padding: 14, textAlign: 'center',
             }}>
-              <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 6, letterSpacing: '0.05em' }}>{stat.label}</div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: stat.color }}>{stat.value}</div>
+              <div style={{ fontSize: 10, color: C.textMuted, marginBottom: 4, letterSpacing: '0.05em' }}>{stat.label}</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: stat.color }}>{stat.value}</div>
             </div>
           ))}
         </div>
 
-        {/* AI Insights Panel */}
+        {/* Deep Insights Cards (NEW) */}
+        {insights.deepInsights?.length > 0 && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
+            {insights.deepInsights.map((di, i) => (
+              <div key={i} style={{
+                background: `linear-gradient(135deg, ${di.color}12, ${di.color}06)`,
+                border: `1px solid ${di.color}30`, borderRadius: 14, padding: 16,
+              }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: di.color, letterSpacing: '0.05em', marginBottom: 8 }}>{di.title}</div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: di.color, marginBottom: 6 }}>{di.metric}</div>
+                <div style={{ fontSize: 11, color: C.textMuted, lineHeight: 1.5 }}>{di.detail}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* AI Insights Panel (Enhanced) */}
         <div style={{
           background: `linear-gradient(135deg, ${C.purple}12, ${C.accent}08)`,
           border: `1px solid ${C.purple}30`, borderRadius: 14, padding: 20, marginBottom: 24,
@@ -954,21 +984,22 @@ export default function DiscoveryEngine() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
             <span style={{ fontSize: 16 }}>🧠</span>
             <h3 style={{ fontSize: 15, fontWeight: 700, color: C.purple, margin: 0 }}>AI 인사이트</h3>
+            <span style={{ fontSize: 11, color: C.textDim, marginLeft: 'auto' }}>{insights.patterns?.length || 0}개 패턴 발견</span>
           </div>
 
           {/* Patterns */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
             {insights.patterns?.map((p, i) => (
               <div key={i} style={{
-                display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px',
+                display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px',
                 background: C.card, borderRadius: 8, border: `1px solid ${C.border}`,
               }}>
                 <span style={{
-                  fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 6,
+                  fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 6, flexShrink: 0, marginTop: 2,
                   background: p.impact === 'high' ? `${C.green}20` : p.impact === 'medium' ? `${C.orange}20` : `${C.textDim}20`,
                   color: p.impact === 'high' ? C.green : p.impact === 'medium' ? C.orange : C.textDim,
                 }}>{p.impact.toUpperCase()}</span>
-                <span style={{ fontSize: 12, color: C.text, flex: 1 }}>{p.insight}</span>
+                <span style={{ fontSize: 12, color: C.text, flex: 1, lineHeight: 1.5 }}>{p.insight}</span>
               </div>
             ))}
           </div>
@@ -985,6 +1016,116 @@ export default function DiscoveryEngine() {
               ))}
             </div>
           )}
+        </div>
+
+        {/* Three columns: Video Type + Hooking Pattern + Thumbnail */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 24 }}>
+          {/* Video Type Stats (NEW) */}
+          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 18 }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: C.text, margin: '0 0 14px 0', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ color: C.blue }}>🎬</span> 영상 유형별 성과
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {Object.entries(insights.typeStats || {})
+                .sort((a, b) => b[1].avgViews - a[1].avgViews)
+                .map(([typeId, stats]) => {
+                  const maxViews = Math.max(...Object.values(insights.typeStats || {}).map(s => s.avgViews))
+                  return (
+                    <div key={typeId} style={{
+                      padding: '10px 12px', background: C.surface, borderRadius: 10, border: `1px solid ${C.border}`,
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                        <span style={{ fontSize: 16 }}>{stats.emoji}</span>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: C.text, flex: 1 }}>{stats.label}</span>
+                        <span style={{ fontSize: 10, color: C.textDim }}>{stats.count}개</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <StatBar value={stats.avgViews} max={maxViews} color={C.blue} />
+                        <span style={{ fontSize: 11, fontWeight: 700, color: C.blue, minWidth: 50, textAlign: 'right' }}>{stats.avgViews.toLocaleString()}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
+                        <span style={{ fontSize: 10, color: stats.viewsVsAvg >= 1 ? C.green : C.red }}>
+                          {stats.viewsVsAvg >= 1 ? '▲' : '▼'} 평균 대비 {stats.viewsVsAvg}배
+                        </span>
+                        <span style={{ fontSize: 10, color: C.textDim }}>좋아요율 {stats.likeRate}%</span>
+                      </div>
+                    </div>
+                  )
+                })}
+            </div>
+          </div>
+
+          {/* Hooking Pattern Stats (NEW) */}
+          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 18 }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: C.text, margin: '0 0 14px 0', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ color: C.orange }}>🎣</span> 후킹 패턴별 성과
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {Object.entries(insights.hookStats || {})
+                .sort((a, b) => b[1].avgViews - a[1].avgViews)
+                .map(([hookId, stats]) => {
+                  const maxViews = Math.max(...Object.values(insights.hookStats || {}).map(s => s.avgViews))
+                  return (
+                    <div key={hookId} style={{
+                      padding: '10px 12px', background: C.surface, borderRadius: 10, border: `1px solid ${C.border}`,
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                        <span style={{ fontSize: 16 }}>{stats.emoji}</span>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: C.text, flex: 1 }}>{stats.label}</span>
+                        <span style={{ fontSize: 10, color: C.textDim }}>{stats.count}개</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <StatBar value={stats.avgViews} max={maxViews} color={C.orange} />
+                        <span style={{ fontSize: 11, fontWeight: 700, color: C.orange, minWidth: 50, textAlign: 'right' }}>{stats.avgViews.toLocaleString()}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
+                        <span style={{ fontSize: 10, color: stats.viewsVsAvg >= 1 ? C.green : C.red }}>
+                          {stats.viewsVsAvg >= 1 ? '▲' : '▼'} 평균 대비 {stats.viewsVsAvg}배
+                        </span>
+                        <span style={{ fontSize: 10, color: C.textDim }}>인게이지먼트 {stats.engagementRate}%</span>
+                      </div>
+                    </div>
+                  )
+                })}
+            </div>
+          </div>
+
+          {/* Thumbnail Composition Stats (NEW) */}
+          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 18 }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: C.text, margin: '0 0 14px 0', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ color: C.pink }}>🖼️</span> 썸네일 구성별 성과
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {Object.entries(insights.thumbnailStats || {})
+                .sort((a, b) => b[1].avgViews - a[1].avgViews)
+                .map(([thumbId, stats]) => {
+                  const maxViews = Math.max(...Object.values(insights.thumbnailStats || {}).map(s => s.avgViews))
+                  return (
+                    <div key={thumbId} style={{
+                      padding: '10px 12px', background: C.surface, borderRadius: 10, border: `1px solid ${C.border}`,
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                        <span style={{
+                          width: 10, height: 10, borderRadius: '50%', background: stats.color, flexShrink: 0,
+                        }} />
+                        <span style={{ fontSize: 12, fontWeight: 600, color: C.text, flex: 1 }}>{stats.label}</span>
+                        <span style={{ fontSize: 10, color: C.textDim }}>{stats.count}개</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <StatBar value={stats.avgViews} max={maxViews} color={stats.color} />
+                        <span style={{ fontSize: 11, fontWeight: 700, color: stats.color, minWidth: 50, textAlign: 'right' }}>{stats.avgViews.toLocaleString()}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
+                        <span style={{ fontSize: 10, color: stats.viewsVsAvg >= 1 ? C.green : C.red }}>
+                          {stats.viewsVsAvg >= 1 ? '▲' : '▼'} 평균 대비 {stats.viewsVsAvg}배
+                        </span>
+                        <span style={{ fontSize: 10, color: C.textDim }}>좋아요율 {stats.likeRate}%</span>
+                      </div>
+                    </div>
+                  )
+                })}
+            </div>
+          </div>
         </div>
 
         {/* Two columns: Product Stats + TOP/Bottom */}
@@ -1044,6 +1185,12 @@ export default function DiscoveryEngine() {
                   }}>{i + 1}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12, color: C.text, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.title}</div>
+                    <div style={{ display: 'flex', gap: 4, marginTop: 3 }}>
+                      {v.videoType && <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 4, background: `${C.blue}18`, color: C.blue }}>{v.videoType.emoji} {v.videoType.label}</span>}
+                      {v.hookingPatterns?.slice(0, 2).map((h, hi) => (
+                        <span key={hi} style={{ fontSize: 9, padding: '1px 6px', borderRadius: 4, background: `${C.orange}18`, color: C.orange }}>{h.emoji} {h.label}</span>
+                      ))}
+                    </div>
                   </div>
                   <span style={{ fontSize: 12, fontWeight: 700, color: C.green, flexShrink: 0 }}>{v.viewCount.toLocaleString()}</span>
                 </div>
@@ -1061,6 +1208,9 @@ export default function DiscoveryEngine() {
                   <span style={{ width: 22, height: 22, borderRadius: '50%', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', background: C.border, color: C.textDim }}>-</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12, color: C.textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.title}</div>
+                    <div style={{ display: 'flex', gap: 4, marginTop: 3 }}>
+                      {v.videoType && <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 4, background: `${C.textDim}18`, color: C.textDim }}>{v.videoType.emoji} {v.videoType.label}</span>}
+                    </div>
                   </div>
                   <span style={{ fontSize: 12, fontWeight: 600, color: C.red, flexShrink: 0 }}>{v.viewCount.toLocaleString()}</span>
                 </div>
@@ -1069,7 +1219,7 @@ export default function DiscoveryEngine() {
           </div>
         </div>
 
-        {/* Video Performance Table */}
+        {/* Video Performance Table (Enhanced) */}
         <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden' }}>
           <div style={{ padding: '14px 18px', borderBottom: `1px solid ${C.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 style={{ fontSize: 14, fontWeight: 700, color: C.text, margin: 0 }}>영상별 성과 테이블</h3>
@@ -1085,6 +1235,9 @@ export default function DiscoveryEngine() {
                   {[
                     { key: 'title', label: '제목' },
                     { key: 'productId', label: '제품' },
+                    { key: 'videoType', label: '유형' },
+                    { key: 'hookType', label: '후킹' },
+                    { key: 'thumbType', label: '썸네일' },
                     { key: 'viewCount', label: '조회수' },
                     { key: 'likeCount', label: '좋아요' },
                     { key: 'commentCount', label: '댓글' },
@@ -1092,10 +1245,10 @@ export default function DiscoveryEngine() {
                     { key: 'publishedAt', label: '업로드' },
                   ].map(col => (
                     <th key={col.key} onClick={() => handleSort(col.key)} style={{
-                      padding: '10px 12px', textAlign: col.key === 'title' ? 'left' : 'right',
+                      padding: '10px 8px', textAlign: col.key === 'title' ? 'left' : 'center',
                       color: channelSort.key === col.key ? C.accent : C.textMuted,
                       fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
-                      userSelect: 'none', letterSpacing: '0.03em',
+                      userSelect: 'none', letterSpacing: '0.03em', fontSize: 11,
                     }}>
                       {col.label}{sortIcon(col.key)}
                     </th>
@@ -1111,23 +1264,46 @@ export default function DiscoveryEngine() {
                       borderBottom: `1px solid ${C.border}`,
                       background: isTop ? `${C.green}06` : isBottom ? `${C.red}06` : (i % 2 === 0 ? 'transparent' : C.surface),
                     }}>
-                      <td style={{ padding: '10px 12px', maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: C.text }}>
+                      <td style={{ padding: '10px 8px', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: C.text }}>
                         {isTop && <span style={{ color: C.green, marginRight: 4 }}>▲</span>}
                         {isBottom && <span style={{ color: C.red, marginRight: 4 }}>▼</span>}
                         <a href={v.url} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }} title={v.title}>{v.title}</a>
                       </td>
-                      <td style={{ padding: '10px 12px', textAlign: 'right' }}>
-                        <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 8, background: `${C.accent}15`, color: C.accent }}>
+                      <td style={{ padding: '10px 4px', textAlign: 'center' }}>
+                        <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 6, background: `${C.accent}15`, color: C.accent, whiteSpace: 'nowrap' }}>
                           {PRODUCT_EMOJIS[v.productId] || ''} {PRODUCT_NAMES[v.productId] || '기타'}
                         </span>
                       </td>
-                      <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600, color: v.viewCount > insights.avgViews ? C.green : C.textMuted }}>
+                      <td style={{ padding: '10px 4px', textAlign: 'center' }}>
+                        <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 6, background: `${C.blue}15`, color: C.blue, whiteSpace: 'nowrap' }}>
+                          {v.videoType?.emoji} {v.videoType?.label || '기타'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '10px 4px', textAlign: 'center' }}>
+                        <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'center' }}>
+                          {v.hookingPatterns?.slice(0, 2).map((h, hi) => (
+                            <span key={hi} style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, background: `${C.orange}15`, color: C.orange, whiteSpace: 'nowrap' }}>
+                              {h.emoji}{h.label}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td style={{ padding: '10px 4px', textAlign: 'center' }}>
+                        <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'center' }}>
+                          {v.thumbnailComposition?.slice(0, 2).map((tc, ti) => (
+                            <span key={ti} style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, background: `${tc.color}15`, color: tc.color, whiteSpace: 'nowrap' }}>
+                              {tc.label}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td style={{ padding: '10px 8px', textAlign: 'right', fontWeight: 600, color: v.viewCount > insights.avgViews ? C.green : C.textMuted }}>
                         {v.viewCount.toLocaleString()}
                       </td>
-                      <td style={{ padding: '10px 12px', textAlign: 'right', color: C.textMuted }}>{v.likeCount.toLocaleString()}</td>
-                      <td style={{ padding: '10px 12px', textAlign: 'right', color: C.textMuted }}>{v.commentCount.toLocaleString()}</td>
-                      <td style={{ padding: '10px 12px', textAlign: 'right', color: C.textDim, fontFamily: 'monospace' }}>{v.durationSec}s</td>
-                      <td style={{ padding: '10px 12px', textAlign: 'right', color: C.textDim, whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '10px 8px', textAlign: 'right', color: C.textMuted }}>{v.likeCount.toLocaleString()}</td>
+                      <td style={{ padding: '10px 8px', textAlign: 'right', color: C.textMuted }}>{v.commentCount.toLocaleString()}</td>
+                      <td style={{ padding: '10px 8px', textAlign: 'right', color: C.textDim, fontFamily: 'monospace' }}>{v.durationSec}s</td>
+                      <td style={{ padding: '10px 8px', textAlign: 'right', color: C.textDim, whiteSpace: 'nowrap' }}>
                         {new Date(v.publishedAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
                       </td>
                     </tr>

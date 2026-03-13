@@ -44,16 +44,44 @@ export async function POST(request) {
         ? product.voc_insights.map((v, i) => `  ${i + 1}. ${v}`).join('\n')
         : '(없음)'
 
-      // 채널 분석 인사이트 블록 구성
+      // 채널 분석 인사이트 블록 구성 (강화)
       const channelRef = channelInsights
         ? (() => {
-            const lines = [`  평균 조회수: ${channelInsights.avgViews?.toLocaleString() || 'N/A'}`, `  평균 인게이지먼트: ${channelInsights.avgEngagement || 'N/A'}%`]
+            const lines = [
+              `  평균 조회수: ${channelInsights.avgViews?.toLocaleString() || 'N/A'}`,
+              `  평균 인게이지먼트: ${channelInsights.avgEngagement || 'N/A'}%`,
+              `  평균 좋아요율: ${channelInsights.avgLikeRate || 'N/A'}%`,
+            ]
             if (channelInsights.top3?.length) {
               lines.push('  TOP 성과 영상:')
-              channelInsights.top3.forEach((v, i) => lines.push(`    ${i + 1}. "${v.title}" — 조회수 ${v.viewCount.toLocaleString()}`))
+              channelInsights.top3.forEach((v, i) => {
+                const typeLabel = v.videoType?.label || '분류없음'
+                const hooks = v.hookingPatterns?.map(h => h.label).join('+') || '없음'
+                lines.push(`    ${i + 1}. "${v.title}" — 조회수 ${v.viewCount.toLocaleString()} | 유형: ${typeLabel} | 후킹: ${hooks}`)
+              })
+            }
+            // 영상 유형별 성과
+            if (channelInsights.typeStats && Object.keys(channelInsights.typeStats).length > 0) {
+              lines.push('  영상 유형별 성과:')
+              Object.entries(channelInsights.typeStats)
+                .sort((a, b) => b[1].avgViews - a[1].avgViews)
+                .forEach(([type, stats]) => {
+                  lines.push(`    - ${stats.emoji} ${stats.label}: ${stats.count}개, 평균 ${stats.avgViews.toLocaleString()}회, 좋아요율 ${stats.likeRate}% (평균 대비 ${stats.viewsVsAvg}배)`)
+                })
+            }
+            // 후킹 패턴별 성과
+            if (channelInsights.hookStats && Object.keys(channelInsights.hookStats).length > 0) {
+              lines.push('  후킹 패턴별 성과:')
+              Object.entries(channelInsights.hookStats)
+                .filter(([t]) => t !== 'plain')
+                .sort((a, b) => b[1].avgViews - a[1].avgViews)
+                .slice(0, 5)
+                .forEach(([type, stats]) => {
+                  lines.push(`    - ${stats.emoji} ${stats.label}: ${stats.count}개, 평균 ${stats.avgViews.toLocaleString()}회 (평균 대비 ${stats.viewsVsAvg}배)`)
+                })
             }
             if (channelInsights.patterns?.length) {
-              lines.push('  성과 패턴:')
+              lines.push('  수치 기반 성과 패턴:')
               channelInsights.patterns.forEach(p => lines.push(`    - [${p.impact}] ${p.insight}`))
             }
             const productId = product.id
@@ -154,8 +182,10 @@ ${sfTypeFilter ? `사용자가 유형 "${sfTypeFilter}"을 선택했습니다. 9
    - true: 제품 클로즈업, Before/After, 이미지 기반 모션 등 AI로 생성 가능한 장면 위주
    - false: 실제 사람 연기, 특정 장소 로케이션, 실험/시연 촬영 등 실사 촬영 필요
 8. YouTube 채널 성과 데이터가 있으면 적극 참고하세요.
-   - TOP 성과 영상의 포맷/주제/훅을 분석하여 유사한 패턴 활용
-   - 하위 성과 영상의 패턴은 피하세요
+   - TOP 성과 영상의 유형(비교형/기능증명형 등)과 후킹 패턴(질문형/놀람형 등)을 분석하여 유사한 패턴 활용
+   - 영상 유형별 평균 조회수를 비교하여 가장 효과적인 유형 위주로 제작
+   - 후킹 패턴별 성과 데이터를 참고하여 hook_copy 작성 시 효과적인 패턴 적용
+   - 하위 성과 영상의 유형/패턴은 피하세요
    - 해당 제품의 채널 성과가 있으면 어떤 각도가 효과적이었는지 반영
 
 반드시 아래 JSON 형식으로만 응답하세요. 다른 텍스트 없이 JSON만:
