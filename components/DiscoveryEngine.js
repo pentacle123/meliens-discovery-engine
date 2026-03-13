@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { PRODUCTS, CONTEXT_DIMS, SEASON_DATA, SF_TEMPLATES, SF_TYPES } from '@/lib/data'
+import { PRODUCTS, CONTEXT_DIMS, SEASON_DATA, SF_TEMPLATES, SF_TYPES, LISTENING_MIND_DATA } from '@/lib/data'
 
 // ─── STYLE CONSTANTS ───
 const C = {
@@ -330,6 +330,137 @@ export default function DiscoveryEngine() {
             ))}
           </div>
         )}
+
+        {/* ═══ ListeningMind 검색 데이터 섹션 ═══ */}
+        {LISTENING_MIND_DATA && (() => {
+          const lm = LISTENING_MIND_DATA
+          const brand = lm.brand
+          // 제품별 검색량 비교 데이터
+          const productSearchData = Object.entries(lm.products)
+            .map(([id, data]) => {
+              const topKw = data.keywords.reduce((max, kw) => kw.monthly_avg > max.monthly_avg ? kw : max, data.keywords[0])
+              return { id, name: data.name, topKeyword: topKw.keyword, monthly_avg: topKw.monthly_avg, trend: topKw.trend, gender: data.gender, age: data.age }
+            })
+            .sort((a, b) => b.monthly_avg - a.monthly_avg)
+          const maxSearchVol = productSearchData[0]?.monthly_avg || 1
+
+          return (
+            <>
+              {/* Brand Search Trend */}
+              <div style={{ background: `linear-gradient(135deg, ${C.accent}10, ${C.blue}08)`, border: `1px solid ${C.accent}30`, borderRadius: 14, padding: 20, marginBottom: 20 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                  <span style={{ fontSize: 16 }}>🔍</span>
+                  <h3 style={{ fontSize: 15, fontWeight: 700, color: C.accent, margin: 0 }}>리스닝마인드 검색 데이터</h3>
+                  <span style={{ fontSize: 10, color: C.textDim, marginLeft: 'auto' }}>실제 소비자 검색 행동 기반</span>
+                </div>
+                {/* Brand overview cards */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 16 }}>
+                  <div style={{ background: C.card, borderRadius: 10, padding: 14, textAlign: 'center', border: `1px solid ${C.border}` }}>
+                    <div style={{ fontSize: 10, color: C.textMuted, marginBottom: 4 }}>브랜드 월검색량</div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: C.accent }}>{brand.monthly_avg.toLocaleString()}</div>
+                    <div style={{ fontSize: 11, color: brand.trend >= 0 ? C.green : C.red, fontWeight: 600 }}>{brand.trend >= 0 ? '▲' : '▼'} {Math.abs(brand.trend * 100).toFixed(0)}%</div>
+                  </div>
+                  <div style={{ background: C.card, borderRadius: 10, padding: 14, textAlign: 'center', border: `1px solid ${C.border}` }}>
+                    <div style={{ fontSize: 10, color: C.textMuted, marginBottom: 4 }}>여성 비율</div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: C.pink }}>{brand.gender.female.toFixed(0)}%</div>
+                    <div style={{ fontSize: 11, color: C.textDim }}>남성 {brand.gender.male.toFixed(0)}%</div>
+                  </div>
+                  <div style={{ background: C.card, borderRadius: 10, padding: 14, textAlign: 'center', border: `1px solid ${C.border}` }}>
+                    <div style={{ fontSize: 10, color: C.textMuted, marginBottom: 4 }}>핵심 연령대</div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: C.blue }}>30대</div>
+                    <div style={{ fontSize: 11, color: C.textDim }}>{brand.age['30-39']}%</div>
+                  </div>
+                  <div style={{ background: C.card, borderRadius: 10, padding: 14, textAlign: 'center', border: `1px solid ${C.border}` }}>
+                    <div style={{ fontSize: 10, color: C.textMuted, marginBottom: 4 }}>제품 수</div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: C.green }}>{Object.keys(lm.products).length}</div>
+                    <div style={{ fontSize: 11, color: C.textDim }}>카테고리</div>
+                  </div>
+                </div>
+                <div style={{ fontSize: 12, color: C.textMuted, lineHeight: 1.6, padding: '10px 14px', background: C.card, borderRadius: 8, border: `1px solid ${C.border}` }}>
+                  💡 {brand.insight}
+                </div>
+              </div>
+
+              {/* Product Search Volume Comparison */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+                <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 18 }}>
+                  <h3 style={{ fontSize: 14, fontWeight: 700, color: C.text, margin: '0 0 14px 0', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ color: C.accent }}>📊</span> 제품별 검색량 비교
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {productSearchData.map((pd) => {
+                      const p = PRODUCTS.find(pp => pp.id === pd.id)
+                      return (
+                        <div key={pd.id} style={{ padding: '10px 12px', background: C.surface, borderRadius: 10, border: `1px solid ${C.border}` }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                            <span style={{ fontSize: 16 }}>{p?.emoji || '📦'}</span>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: C.text, flex: 1 }}>{pd.name}</span>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: pd.trend >= 0 ? C.green : C.red }}>{pd.trend >= 0 ? '▲' : '▼'}{Math.abs(pd.trend * 100).toFixed(0)}%</span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <div style={{ flex: 1, height: 6, background: C.border, borderRadius: 3, overflow: 'hidden' }}>
+                              <div style={{ width: `${(pd.monthly_avg / maxSearchVol * 100)}%`, height: '100%', background: C.accent, borderRadius: 3, transition: 'width 0.6s ease' }} />
+                            </div>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: C.accent, minWidth: 60, textAlign: 'right' }}>{pd.monthly_avg.toLocaleString()}/월</span>
+                          </div>
+                          <div style={{ fontSize: 10, color: C.textDim, marginTop: 3 }}>"{pd.topKeyword}"</div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Competitor Comparison */}
+                <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 18 }}>
+                  <h3 style={{ fontSize: 14, fontWeight: 700, color: C.text, margin: '0 0 14px 0', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ color: C.red }}>⚔️</span> 경쟁 환경
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {Object.entries(lm.competitive_landscape).map(([key, desc]) => (
+                      <div key={key} style={{ padding: '12px 14px', background: C.surface, borderRadius: 10, border: `1px solid ${C.border}`, borderLeft: `3px solid ${C.red}` }}>
+                        <div style={{ fontSize: 12, color: C.text, lineHeight: 1.6 }}>{desc}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Product-level competitors */}
+                  <div style={{ marginTop: 14 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, marginBottom: 8, letterSpacing: '0.05em' }}>제품별 경쟁사</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {Object.entries(lm.products).flatMap(([id, data]) =>
+                        data.competitors.map(comp => ({ id, comp }))
+                      ).reduce((acc, { comp }) => {
+                        if (!acc.find(c => c === comp)) acc.push(comp)
+                        return acc
+                      }, []).slice(0, 12).map((comp, i) => (
+                        <span key={i} style={{ fontSize: 10, padding: '3px 8px', background: `${C.red}12`, color: C.red, borderRadius: 10, border: `1px solid ${C.red}20` }}>{comp}</span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Key Insights Cards */}
+              <div style={{ background: `linear-gradient(135deg, ${C.orange}10, ${C.green}06)`, border: `1px solid ${C.orange}30`, borderRadius: 14, padding: 20, marginBottom: 28 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                  <span style={{ fontSize: 16 }}>💡</span>
+                  <h3 style={{ fontSize: 15, fontWeight: 700, color: C.orange, margin: 0 }}>검색 데이터 기반 숏폼 핵심 인사이트</h3>
+                  <span style={{ fontSize: 10, color: C.textDim, marginLeft: 'auto' }}>{lm.key_insights_for_shortform.length}개</span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+                  {lm.key_insights_for_shortform.map((insight, i) => {
+                    const colors = [C.accent, C.blue, C.green, C.orange, C.pink, C.purple, C.red, C.accent, C.blue]
+                    const color = colors[i % colors.length]
+                    return (
+                      <div key={i} style={{ padding: '14px', background: C.card, borderRadius: 10, border: `1px solid ${C.border}`, borderTop: `3px solid ${color}` }}>
+                        <div style={{ fontSize: 12, color: C.text, lineHeight: 1.6 }}>{insight}</div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </>
+          )
+        })()}
 
         {/* AI Insights Panel */}
         <div style={{ background: `linear-gradient(135deg, ${C.purple}12, ${C.accent}08)`, border: `1px solid ${C.purple}30`, borderRadius: 14, padding: 20, marginBottom: 28 }}>

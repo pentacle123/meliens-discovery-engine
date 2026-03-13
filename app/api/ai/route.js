@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { LISTENING_MIND_DATA } from '@/lib/data'
 
 // JSON 배열 또는 객체를 텍스트에서 안전하게 추출
 function extractJSON(text) {
@@ -93,6 +94,56 @@ export async function POST(request) {
           })()
         : '(없음)'
 
+      // 리스닝마인드 검색 데이터 블록 구성
+      const lmProduct = LISTENING_MIND_DATA?.products?.[product.id]
+      const lmBrand = LISTENING_MIND_DATA?.brand
+      const searchDataRef = lmProduct
+        ? (() => {
+            const lines = []
+            // 브랜드 데이터
+            if (lmBrand) {
+              lines.push(`  [브랜드] "${lmBrand.keyword}" 월 평균 ${lmBrand.monthly_avg.toLocaleString()}회, 트렌드 ${lmBrand.trend > 0 ? '+' : ''}${(lmBrand.trend * 100).toFixed(0)}%, 여성 ${lmBrand.gender.female}%`)
+            }
+            // 제품 키워드 데이터
+            if (lmProduct.keywords?.length) {
+              lines.push('  [제품 키워드]')
+              lmProduct.keywords.forEach(kw => {
+                lines.push(`    - "${kw.keyword}" 월 ${kw.monthly_avg.toLocaleString()}회 (${kw.trend > 0 ? '+' : ''}${(kw.trend * 100).toFixed(0)}%) 의도: ${kw.intent}`)
+              })
+            }
+            // 인구통계
+            lines.push(`  [인구통계] 남성 ${lmProduct.gender.male}% / 여성 ${lmProduct.gender.female}%`)
+            const topAge = Object.entries(lmProduct.age).sort((a, b) => b[1] - a[1]).slice(0, 2)
+            lines.push(`  [핵심 연령] ${topAge.map(([k, v]) => `${k}세 ${v}%`).join(', ')}`)
+            // 시즌성
+            if (lmProduct.seasonality) lines.push(`  [시즌성] ${lmProduct.seasonality}`)
+            // 경쟁사
+            if (lmProduct.competitors?.length) lines.push(`  [경쟁사] ${lmProduct.competitors.join(', ')}`)
+            // 소비자 검색 여정
+            if (lmProduct.search_journey?.length) {
+              lines.push('  [소비자 검색 여정]')
+              lmProduct.search_journey.forEach(j => lines.push(`    - ${j}`))
+            }
+            // 소비자 우려사항
+            if (lmProduct.consumer_concerns?.length) {
+              lines.push(`  [소비자 우려/관심사] ${lmProduct.consumer_concerns.join(' | ')}`)
+            }
+            // 콘텐츠 인사이트
+            if (lmProduct.content_insight) lines.push(`  [콘텐츠 인사이트] ${lmProduct.content_insight}`)
+            return lines.join('\n')
+          })()
+        : '(없음)'
+
+      // 경쟁 환경 데이터
+      const competitiveRef = LISTENING_MIND_DATA?.competitive_landscape
+        ? Object.values(LISTENING_MIND_DATA.competitive_landscape).join('\n  ')
+        : '(없음)'
+
+      // 숏폼 핵심 인사이트
+      const keyInsightsRef = LISTENING_MIND_DATA?.key_insights_for_shortform
+        ? LISTENING_MIND_DATA.key_insights_for_shortform.map((ins, i) => `  ${i + 1}. ${ins}`).join('\n')
+        : '(없음)'
+
       prompt = `당신은 발견 커머스(Discovery Commerce) 숏폼 콘텐츠 전문가입니다.
 당신은 한국 시장에 정통한 숏폼 커머스 전문가입니다. 한국의 실제 물가, 소비 문화, 유행어, 생활 패턴을 정확히 반영하세요.
 
@@ -119,17 +170,31 @@ ${vocRef}
 [참고: YouTube 채널 성과 분석]
 ${channelRef}
 
+[참고: 리스닝마인드 검색 데이터 — 실제 소비자 검색 행동 기반]
+${searchDataRef}
+
+[참고: 경쟁 환경]
+  ${competitiveRef}
+
+[참고: 숏폼 핵심 인사이트 — 검색 데이터 기반 제작 방향]
+${keyInsightsRef}
+
 ═══ 3단계 아이디어 도출 프로세스 ═══
 반드시 아래 3단계를 순서대로 따르세요:
 
 STEP 1 — 자유 아이디어 생성:
-위 제품 정보, 맥락 후보값, VOC 인사이트를 종합하여 먼저 아이디어 9개를 자유롭게 발상하세요.
+위 제품 정보, 맥락 후보값, VOC 인사이트, 리스닝마인드 검색 데이터를 종합하여 먼저 아이디어 9개를 자유롭게 발상하세요.
+- 소비자 검색 여정(search_journey)을 분석하여 전환 경로를 반영한 아이디어를 생성하세요.
+- 소비자 우려사항(consumer_concerns)을 숏폼 후킹 카피와 페인포인트에 직접 활용하세요.
+- 콘텐츠 인사이트(content_insight)를 아이디어 방향성의 근거로 사용하세요.
+- 경쟁 환경(competitive_landscape)을 비교형 숏폼 아이디어에 활용하세요.
 
 STEP 2 — 검색 데이터 검증:
 리스닝마인드의 intent_finder와 keyword_info 도구로 이 제품 관련 키워드를 검색하세요.
 - intent_finder: 제품명, 카테고리, 핵심 강점 관련 키워드로 소비자 검색 의도 파악
 - keyword_info: 주요 키워드의 검색량, 검색 의도(I/N/C/T), 인구통계 분석
 gl(국가코드)은 "kr"로 설정하세요.
+위 [참고: 리스닝마인드 검색 데이터]에 있는 실제 수치를 기반으로 하되, 추가 검증이 필요하면 도구를 사용하세요.
 검색 데이터에서 실제 소비자가 어떤 기대와 우려를 갖고 검색하는지 확인하여 STEP 1 아이디어를 검증하세요.
 
 STEP 3 — VOC 교차 검증:
@@ -185,7 +250,8 @@ ${sfTypeFilter ? `사용자가 유형 "${sfTypeFilter}"을 선택했습니다. 9
 2. 매우 구체적이고 현실적인 상황을 묘사하세요. 추상적이면 안 됩니다.
 3. 각 아이디어에 hook_copy를 반드시 포함하세요 — 숏폼 첫 3초에 사용할 후킹 카피 한 줄.
 4. 9개 조합이 서로 겹치지 않아야 합니다. 각각 완전히 다른 관점이어야 합니다.
-5. data_evidence는 STEP 3의 검증 결과 이모지(🟢/🟡/🔵)로 시작하세요.
+5. data_evidence는 STEP 3의 검증 결과 이모지(🟢/🟡/🔵)로 시작하고, 실제 검색량 수치를 포함하세요.
+   예: "🟢 검색: '진동클렌저' 월 9,566회(+35%) T의도 | '부작용' 284회 → 불안 해소 콘텐츠 필요 | VOC: 만족 반응 최다"
 6. 이전에 생성했던 결과와 완전히 다른 관점으로 생성하세요. 새로운 시각, 새로운 타겟, 새로운 상황을 탐색하세요.
 7. ai_producible: 이 아이디어를 간단한 제품 촬영(스튜디오, 탁상)만으로 제작 가능한지 판단하세요.
    - true: 제품 클로즈업, Before/After, 단순 사용 시연 등 간단한 스튜디오 촬영으로 가능
