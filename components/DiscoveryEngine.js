@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { PRODUCTS, CONTEXT_DIMS, SEASON_DATA, SF_TEMPLATES, SF_TYPES, LISTENING_MIND_DATA } from '@/lib/data'
+import DAiCreativeEngine from './DAiCreativeEngine'
 
 // ─── STYLE CONSTANTS ───
 const C = {
@@ -1252,30 +1253,51 @@ export default function DiscoveryEngine() {
             })}
           </div>
 
-          {/* AI 성과 Insight — 별도 대시보드 탭 (스텝 번호 없음) */}
-          <button onClick={() => setActiveTab('insight')} style={{
-            padding: '14px 16px', background: 'transparent',
-            border: 'none', borderBottom: `2px solid ${activeTab === 'insight' ? C.purple : 'transparent'}`,
-            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
-            transition: 'all 0.2s ease', marginLeft: 16,
-          }}>
-            <span style={{
-              fontSize: 16, color: activeTab === 'insight' ? C.purple : C.textDim,
-              transition: 'all 0.3s ease',
-            }}>◉</span>
-            <span style={{
-              fontSize: 13, fontWeight: activeTab === 'insight' ? 700 : 400,
-              color: activeTab === 'insight' ? C.purple : C.textDim,
-              whiteSpace: 'nowrap',
+          {/* 별도 대시보드 탭들 (스텝 번호 없음) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 16 }}>
+            <button onClick={() => setActiveTab('insight')} style={{
+              padding: '14px 16px', background: 'transparent',
+              border: 'none', borderBottom: `2px solid ${activeTab === 'insight' ? C.purple : 'transparent'}`,
+              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
+              transition: 'all 0.2s ease',
             }}>
-              AI 성과 Insight
-            </span>
-          </button>
+              <span style={{
+                fontSize: 16, color: activeTab === 'insight' ? C.purple : C.textDim,
+                transition: 'all 0.3s ease',
+              }}>◉</span>
+              <span style={{
+                fontSize: 13, fontWeight: activeTab === 'insight' ? 700 : 400,
+                color: activeTab === 'insight' ? C.purple : C.textDim,
+                whiteSpace: 'nowrap',
+              }}>
+                AI 성과 Insight
+              </span>
+            </button>
+            <button onClick={() => setActiveTab('dai-creative')} style={{
+              padding: '14px 16px', background: 'transparent',
+              border: 'none', borderBottom: `2px solid ${activeTab === 'dai-creative' ? '#f59e0b' : 'transparent'}`,
+              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
+              transition: 'all 0.2s ease',
+            }}>
+              <span style={{
+                fontSize: 16, color: activeTab === 'dai-creative' ? '#f59e0b' : C.textDim,
+                transition: 'all 0.3s ease',
+              }}>◆</span>
+              <span style={{
+                fontSize: 13, fontWeight: activeTab === 'dai-creative' ? 700 : 400,
+                color: activeTab === 'dai-creative' ? '#f59e0b' : C.textDim,
+                whiteSpace: 'nowrap',
+              }}>
+                DAi Creative
+              </span>
+            </button>
+          </div>
         </div>
       </nav>
 
       {/* CONTENT */}
       <main style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 24px' }}>
+        {activeTab === 'dai-creative' && <DAiCreativeEngine />}
         {activeTab === 'insight' && renderChannelInsight()}
         {activeTab === 0 && renderProductAnalysis()}
         {activeTab === 1 && renderContextDiscovery()}
