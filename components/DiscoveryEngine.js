@@ -858,21 +858,14 @@ export default function DiscoveryEngine() {
           })}
         </div>
 
-        {/* Matched Results (REDESIGNED) */}
+        {/* Matched Results — Phone Preview + Detail List */}
         {matchedContexts && (() => {
-          const TIER_CONFIG = {
-            safe: { label: 'TIER 1 — 검증된 안전 조합', color: C.green, icon: '🟢' },
-            cross: { label: 'TIER 2 — 크로스 카테고리', color: C.orange, icon: '🟡' },
-            experimental: { label: 'TIER 3 — 파격적/실험적', color: C.purple, icon: '🔵' },
+          const SF_TYPE_BG = {
+            A: 'linear-gradient(160deg, #1a0808 0%, #2d1111 40%, #1a0505 100%)',
+            B: 'linear-gradient(160deg, #081a0e 0%, #112d18 40%, #051a0a 100%)',
+            C: 'linear-gradient(160deg, #0d081a 0%, #18112d 40%, #0a051a 100%)',
           }
-          const tiers = ['safe', 'cross', 'experimental']
-          const grouped = {}
-          tiers.forEach(t => grouped[t] = [])
-          matchedContexts.forEach((ctx, i) => {
-            const t = ctx.tier || (i < 3 ? 'safe' : i < 6 ? 'cross' : 'experimental')
-            if (grouped[t]) grouped[t].push({ ...ctx, _idx: i })
-            else grouped.safe.push({ ...ctx, _idx: i })
-          })
+          const SF_TYPE_BG_DEFAULT = 'linear-gradient(160deg, #0a0a1a 0%, #11112d 40%, #05051a 100%)'
 
           return (
             <div>
@@ -891,101 +884,143 @@ export default function DiscoveryEngine() {
                 </button>
               </div>
 
-              {tiers.map(tier => {
-                const items = grouped[tier]
-                if (!items.length) return null
-                const cfg = TIER_CONFIG[tier]
-                return (
-                  <div key={tier} style={{ marginBottom: 20 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-                      <span style={{ fontSize: 12 }}>{cfg.icon}</span>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: cfg.color, letterSpacing: '0.04em' }}>{cfg.label}</span>
-                      <span style={{ fontSize: 10, color: C.textDim }}>({items.length}개)</span>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      {items.map((ctx) => (
-                        <div key={ctx._idx} onClick={() => setSelectedContextIdx(ctx._idx)} style={{
-                          background: selectedContextIdx === ctx._idx ? C.surfaceHover : C.card,
-                          border: `1px solid ${selectedContextIdx === ctx._idx ? C.accent : C.border}`,
-                          borderLeft: `3px solid ${cfg.color}`, borderRadius: 14, padding: 18, cursor: 'pointer', transition: 'all 0.3s ease',
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {matchedContexts.map((ctx, idx) => {
+                  const isBlueOcean = ctx.data_evidence?.startsWith('🔵') || ctx.tier === 'experimental'
+                  const sfType = ctx.sf_type && SF_TYPES[ctx.sf_type] ? SF_TYPES[ctx.sf_type] : null
+                  const phoneBg = SF_TYPE_BG[ctx.sf_type] || SF_TYPE_BG_DEFAULT
+                  const phoneBorder = isBlueOcean ? C.blue : (sfType ? sfType.color + '60' : C.border)
+                  const isSelected = selectedContextIdx === idx
+                  const scenes = ctx.scene_flow || [
+                    ctx.WHO ? `${ctx.WHO} 등장` : '일상 장면',
+                    ctx.PAIN || ctx.NEED || '문제 인식',
+                    `${selectedProduct?.name} 사용`,
+                    ctx.insight?.slice(0, 20) + '...' || 'CTA',
+                  ]
+
+                  return (
+                    <div key={idx} onClick={() => setSelectedContextIdx(idx)} style={{
+                      display: 'flex', gap: 20, padding: 20, cursor: 'pointer',
+                      background: isSelected ? C.surfaceHover : C.card,
+                      border: `1px solid ${isSelected ? C.accent : C.border}`,
+                      borderRadius: 16, transition: 'all 0.3s ease',
+                      position: 'relative',
+                    }}>
+                      {/* ─── LEFT: Phone Frame ─── */}
+                      <div style={{ flexShrink: 0, position: 'relative' }}>
+                        {isBlueOcean && (
+                          <div style={{ position: 'absolute', top: -8, left: '50%', transform: 'translateX(-50%)', zIndex: 2, padding: '1px 8px', borderRadius: 6, background: C.blue, fontSize: 8, fontWeight: 800, color: '#fff', letterSpacing: '0.1em', whiteSpace: 'nowrap' }}>BLUE OCEAN</div>
+                        )}
+                        <div style={{
+                          width: 140, height: 248, borderRadius: 16, overflow: 'hidden', position: 'relative',
+                          border: `2px solid ${phoneBorder}`,
+                          background: phoneBg,
+                          boxShadow: isSelected ? `0 0 20px ${(sfType?.color || C.accent)}30` : 'none',
                         }}>
-                          {/* Header row */}
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, flexWrap: 'wrap' }}>
-                              <span style={{ background: selectedContextIdx === ctx._idx ? C.accent : C.border, color: selectedContextIdx === ctx._idx ? C.bg : C.textMuted, width: 26, height: 26, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{ctx.rank || ctx._idx + 1}</span>
-                              {ctx.sf_type && SF_TYPES[ctx.sf_type] && (
-                                <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 6, background: `${SF_TYPES[ctx.sf_type].color}20`, color: SF_TYPES[ctx.sf_type].color, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 3 }}>
-                                  <span>{SF_TYPES[ctx.sf_type].icon}</span>{ctx.sf_type}
-                                </span>
-                              )}
-                              {ctx.axes_used?.map((axis) => (
-                                <span key={axis} style={{ fontSize: 10, fontWeight: 700, color: dimColor(axis), background: `${dimColor(axis)}18`, padding: '2px 7px', borderRadius: 8 }}>{axis}</span>
-                              ))}
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                              {/* AI producible / 촬영 추천 badge */}
-                              {ctx.ai_producible !== undefined && (
-                                <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 6, background: ctx.ai_producible ? `${C.purple}18` : `${C.blue}18`, color: ctx.ai_producible ? C.purple : C.blue, display: 'flex', alignItems: 'center', gap: 3 }}>
-                                  {ctx.ai_producible ? '📷 간편 촬영' : '🎬 연출 촬영'}
-                                </span>
-                              )}
-                              {/* 블루오션 badge */}
-                              {ctx.data_evidence?.startsWith('🔵') && (
-                                <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 6, background: `${C.blue}18`, color: C.blue }}>🔵 블루오션</span>
-                              )}
-                              <div style={{ background: C.accentDim, padding: '3px 12px', borderRadius: 16, flexShrink: 0 }}>
-                                <span style={{ fontSize: 18, fontWeight: 800, color: C.accent }}>{ctx.conversion_score}</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Hook copy — 🎣 */}
-                          {ctx.hook_copy && (
-                            <div style={{ marginBottom: 12, padding: '10px 14px', background: `${C.orange}0a`, borderRadius: 10, border: `1px solid ${C.orange}20` }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                                <span style={{ fontSize: 14 }}>🎣</span>
-                                <span style={{ fontSize: 9, fontWeight: 700, color: C.orange, letterSpacing: '0.06em' }}>HOOK COPY</span>
-                              </div>
-                              <div style={{ fontSize: 14, color: C.text, fontWeight: 600, lineHeight: 1.4 }}>"{ctx.hook_copy}"</div>
+                          {/* Notch */}
+                          <div style={{ position: 'absolute', top: 6, left: '50%', transform: 'translateX(-50%)', width: 40, height: 4, borderRadius: 4, background: 'rgba(255,255,255,0.1)', zIndex: 3 }} />
+                          {/* Type badge */}
+                          {sfType && (
+                            <div style={{ position: 'absolute', top: 16, left: 8, zIndex: 3, padding: '2px 6px', borderRadius: 4, background: `${sfType.color}30`, backdropFilter: 'blur(4px)' }}>
+                              <span style={{ fontSize: 8, fontWeight: 700, color: sfType.color }}>{sfType.icon} {sfType.label}</span>
                             </div>
                           )}
-
-                          {/* Axis values */}
-                          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min((ctx.axes_used || []).filter(a => ctx[a]).length || 1, 3)}, 1fr)`, gap: 6, marginBottom: 10 }}>
-                            {(ctx.axes_used || []).filter(dim => ctx[dim]).map(dim => (
-                              <div key={dim} style={{ background: `${dimColor(dim)}12`, padding: '6px 10px', borderRadius: 8, border: `1px solid ${dimColor(dim)}20` }}>
-                                <span style={{ fontSize: 9, fontWeight: 700, color: dimColor(dim), display: 'block', marginBottom: 2, letterSpacing: '0.06em' }}>{dim}</span>
-                                <span style={{ fontSize: 12, color: C.text, lineHeight: 1.4 }}>{ctx[dim]}</span>
-                              </div>
-                            ))}
+                          {/* Hook copy center */}
+                          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '36px 12px 40px' }}>
+                            <p style={{ fontSize: 14, fontWeight: 800, color: '#fff', textAlign: 'center', lineHeight: 1.5, margin: 0, textShadow: '0 2px 8px rgba(0,0,0,0.6)', wordBreak: 'keep-all' }}>
+                              {ctx.hook_copy ? `"${ctx.hook_copy}"` : `"${ctx.insight?.slice(0, 30) || '후킹 카피'}"`}
+                            </p>
                           </div>
-
-                          {/* Insight */}
-                          <div style={{ fontSize: 12, color: C.textMuted, lineHeight: 1.5, marginBottom: 8 }}>{ctx.insight}</div>
-
-                          {/* Data evidence */}
-                          {ctx.data_evidence && (
-                            <div style={{ padding: '6px 10px', background: `${C.blue}08`, borderRadius: 8, display: 'flex', alignItems: 'flex-start', gap: 5 }}>
-                              <span style={{ fontSize: 11, flexShrink: 0 }}>📊</span>
-                              <span style={{ fontSize: 11, color: C.textMuted, lineHeight: 1.5 }}>{ctx.data_evidence}</span>
+                          {/* Bottom social icons */}
+                          <div style={{ position: 'absolute', bottom: 8, right: 8, display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center', zIndex: 3 }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                              <span style={{ fontSize: 14 }}>♡</span>
+                              <span style={{ fontSize: 7, color: 'rgba(255,255,255,0.6)' }}>{Math.floor(Math.random() * 900 + 100)}</span>
                             </div>
-                          )}
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                              <span style={{ fontSize: 12 }}>💬</span>
+                              <span style={{ fontSize: 7, color: 'rgba(255,255,255,0.6)' }}>{Math.floor(Math.random() * 90 + 10)}</span>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                              <span style={{ fontSize: 12 }}>↗</span>
+                            </div>
+                          </div>
+                          {/* Bottom bar */}
+                          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, ${sfType?.color || C.accent}, transparent)` }} />
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                )
-              })}
+                      </div>
 
-              {/* Actions */}
-              <div style={{ textAlign: 'center', marginTop: 24 }}>
-                <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-                  <button onClick={() => { setActiveTab(2) }} style={{
-                    padding: '14px 40px', background: `linear-gradient(135deg, ${C.accent}, ${C.green})`,
-                    color: C.bg, border: 'none', borderRadius: 12, cursor: 'pointer', fontSize: 15, fontWeight: 700, transition: 'all 0.2s ease',
-                  }}>▸ 이 맥락으로 숏폼 아이디어 생성하기</button>
-                </div>
-                <p style={{ fontSize: 11, color: C.textDim, marginTop: 8 }}>선택된 맥락: #{(selectedContextIdx || 0) + 1} ({matchedContexts[selectedContextIdx]?.WHO || matchedContexts[selectedContextIdx]?.PAIN || '-'})</p>
+                      {/* ─── RIGHT: Detail Info ─── */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        {/* Header: rank + title + score */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                          <span style={{ background: isSelected ? C.accent : C.border, color: isSelected ? C.bg : C.textMuted, width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{ctx.rank || idx + 1}</span>
+                          <span style={{ fontSize: 14, fontWeight: 700, color: C.text, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {ctx.insight?.split(/[.。!！]/)[0] || '맥락 조합 아이디어'}
+                          </span>
+                          <div style={{ background: C.accentDim, padding: '2px 10px', borderRadius: 12, flexShrink: 0 }}>
+                            <span style={{ fontSize: 16, fontWeight: 800, color: C.accent }}>{ctx.conversion_score}</span>
+                          </div>
+                        </div>
+
+                        {/* Description */}
+                        <p style={{ fontSize: 12, color: C.textMuted, margin: '0 0 8px 0', lineHeight: 1.5, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{ctx.insight}</p>
+
+                        {/* Context Tags */}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
+                          {sfType && (
+                            <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 5, background: `${sfType.color}20`, color: sfType.color }}>{sfType.icon} {ctx.sf_type}</span>
+                          )}
+                          {(ctx.axes_used || []).filter(dim => ctx[dim]).map(dim => (
+                            <span key={dim} style={{ fontSize: 9, fontWeight: 600, padding: '2px 6px', borderRadius: 5, background: `${dimColor(dim)}15`, color: dimColor(dim) }}>{dim}: {ctx[dim]}</span>
+                          ))}
+                        </div>
+
+                        {/* Data Evidence */}
+                        {ctx.data_evidence && (
+                          <div style={{ display: 'flex', gap: 5, alignItems: 'flex-start', marginBottom: 8 }}>
+                            <span style={{ fontSize: 10, flexShrink: 0 }}>📊</span>
+                            <span style={{ fontSize: 10, color: C.textMuted, lineHeight: 1.5 }}>{ctx.data_evidence}</span>
+                          </div>
+                        )}
+
+                        {/* Hook copy preview */}
+                        {ctx.hook_copy && (
+                          <div style={{ borderLeft: `2px solid ${C.orange}`, paddingLeft: 10, marginBottom: 8 }}>
+                            <span style={{ fontSize: 9, fontWeight: 700, color: C.orange, letterSpacing: '0.05em' }}>🎣 HOOK</span>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: C.text, lineHeight: 1.4, marginTop: 2 }}>"{ctx.hook_copy}"</div>
+                          </div>
+                        )}
+
+                        {/* 4-Scene Mini Flow */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4, marginBottom: 10 }}>
+                          {scenes.slice(0, 4).map((s, i) => (
+                            <div key={i} style={{ background: C.surface, borderRadius: 6, padding: '4px 6px', textAlign: 'center', border: `1px solid ${C.border}` }}>
+                              <div style={{ fontSize: 8, fontWeight: 700, color: C.textDim, marginBottom: 2 }}>씬{i + 1}</div>
+                              <div style={{ fontSize: 9, color: C.textMuted, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{typeof s === 'string' ? s : s.desc || s.text || `씬 ${i+1}`}</div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Action buttons */}
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          {ctx.ai_producible !== undefined && (
+                            <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 6, background: ctx.ai_producible ? `${C.purple}18` : `${C.blue}18`, color: ctx.ai_producible ? C.purple : C.blue }}>
+                              {ctx.ai_producible ? '🤖 AI 영상 가능' : '📷 촬영 추천'}
+                            </span>
+                          )}
+                          <button onClick={(e) => { e.stopPropagation(); setSelectedContextIdx(idx); setActiveTab(2) }} style={{
+                            fontSize: 10, fontWeight: 700, padding: '4px 12px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                            background: `linear-gradient(135deg, ${C.accent}, ${C.green})`, color: C.bg,
+                          }}>촬영 스토리보드 생성 →</button>
+                          <button onClick={(e) => { e.stopPropagation(); runContextMatching(selectedProduct) }} disabled={isMatching} style={{
+                            fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 6, border: `1px solid ${C.border}`, background: C.surface, color: C.textMuted, cursor: isMatching ? 'wait' : 'pointer',
+                          }}>↻ 재생성</button>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )
