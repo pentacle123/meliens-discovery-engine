@@ -173,25 +173,26 @@ export default function DiscoveryEngine() {
   function generateFallbackContexts(product) {
     const base = (items) => items.map((item, i) => ({
       ...item,
-      tier: i < 3 ? 'safe' : i < 6 ? 'cross' : 'experimental',
+      tier: i < 4 ? 'safe' : i < 7 ? 'cross' : 'experimental',
     }))
     const fallbacks = {
       clenser: base([
-        { rank: 1, sf_type: "A", axes_used: ["WHO", "PAIN"], WHO: "자취 1년차 사회초년생", PAIN: "세안해도 남아있는 잔여 메이크업", conversion_score: 96, hook_copy: "이거 안 쓰면 세안 반만 한 거임", ai_producible: true, insight: "WHO의 시간 부족 + PAIN의 잔여물 고민", data_evidence: "🟢 검색: '클렌저 추천' 월 8,100회 | VOC: '피부 매끈' 만족 반응 최다" },
-        { rank: 2, sf_type: "B", axes_used: ["PAIN", "NEED"], PAIN: "일반 세안으로 잔여 메이크업이 안 지워짐", NEED: "눈에 보이는 세정력 차이", conversion_score: 93, hook_copy: "손으로 세안 vs 진동클렌저, 잔여물 차이 봐봐", ai_producible: false, insight: "초미세진동 12,000회 vs 손세안 비교 기능 증명", data_evidence: "🟡 검색: '클렌저 세정력 비교' I 85%" },
-        { rank: 3, sf_type: "A", axes_used: ["WHO", "PAIN"], WHO: "뷰티 관심 대학생", PAIN: "피부 트러블 반복되는데 원인 모름", conversion_score: 90, hook_copy: "트러블 원인이 세안법이었다고?", ai_producible: true, insight: "트러블 원인 미지 — 세안법 솔루션", data_evidence: "🟢 검색: '피부 트러블 원인' 월 5,400회" },
-        { rank: 4, sf_type: "C", axes_used: ["WHO", "INTEREST"], WHO: "갓생러 루틴 관심자", INTEREST: "자기계발/갓생", conversion_score: 85, hook_copy: "갓생 루틴의 시작은 세안부터", ai_producible: true, insight: "자기계발 관심사와 스킨케어 루틴 연결", data_evidence: "🟡 검색: '갓생 루틴' 1월 +140%" },
-        { rank: 5, sf_type: "C", axes_used: ["WHO", "INTEREST"], WHO: "부모님 선물 고민 자녀", INTEREST: "효도/가족", conversion_score: 83, hook_copy: "3만원으로 엄마 피부 바꿔드렸더니...", ai_producible: false, insight: "선물 카테고리와 뷰티 연결", data_evidence: "🟢 검색: '어버이날 선물 추천' 급증" },
-        { rank: 6, sf_type: "A", axes_used: ["WHO", "INTEREST"], WHO: "ASMR 좋아하는 시청자", INTEREST: "ASMR", conversion_score: 80, hook_copy: "클렌저 ASMR 듣다가 잠듦ㅋㅋ", ai_producible: true, insight: "ASMR 관심사와 클렌저 진동음 연결", data_evidence: "🟡 ASMR 대량 검색 — 콘텐츠 크로스 가능" },
-        { rank: 7, sf_type: "C", axes_used: ["WHO", "WHERE"], WHO: "반려동물 집사", WHERE: "강아지 목욕 후", conversion_score: 72, hook_copy: "강아지 발바닥도 진동클렌징 된다고?", ai_producible: false, insight: "반려동물 케어와 클렌저 기능 연결", data_evidence: "🔵 신규 기회 — 펫 그루밍 시장 교차" },
-        { rank: 8, sf_type: "B", axes_used: ["PAIN"], PAIN: "캠핑에서 세안이 불편", conversion_score: 68, hook_copy: "캠핑장 세면대에서 이거 꺼내면 반응이...", ai_producible: false, insight: "캠핑 상황의 세안 불편 해결", data_evidence: "🔵 신규 기회 — 캠핑족 위생 니즈" },
-        { rank: 9, sf_type: "A", axes_used: ["WHO", "PAIN"], WHO: "중년 남성", PAIN: "피부 관리 시작하고 싶은데 뭘 해야 할지 모름", conversion_score: 65, hook_copy: "40대 남자인데 이거 하나로 피부 달라짐", ai_producible: true, insight: "남성 스킨케어 입문 시장", data_evidence: "🔵 신규 기회 — 남성 그루밍 시장 성장 중" },
+        { rank: 1, thinking_direction: "forward", sf_type: "A", axes_used: ["WHO", "PAIN"], WHO: "자취 1년차 사회초년생", PAIN: "세안해도 남아있는 잔여 메이크업", conversion_score: 96, hook_copy: "이거 안 쓰면 세안 반만 한 거임", ai_producible: true, insight: "WHO의 시간 부족 + PAIN의 잔여물 고민", data_evidence: "🟢 검색: '클렌저 추천' 월 8,100회 | VOC: '피부 매끈' 만족 반응 최다" },
+        { rank: 2, thinking_direction: "forward", sf_type: "B", axes_used: ["PAIN", "NEED"], PAIN: "일반 세안으로 잔여 메이크업이 안 지워짐", NEED: "눈에 보이는 세정력 차이", conversion_score: 93, hook_copy: "손으로 세안 vs 진동클렌저, 잔여물 차이 봐봐", ai_producible: false, insight: "초미세진동 12,000회 vs 손세안 비교 기능 증명", data_evidence: "🟡 검색: '클렌저 세정력 비교' I 85%" },
+        { rank: 3, thinking_direction: "forward", sf_type: "A", axes_used: ["WHO", "PAIN"], WHO: "뷰티 관심 대학생", PAIN: "피부 트러블 반복되는데 원인 모름", conversion_score: 90, hook_copy: "트러블 원인이 세안법이었다고?", ai_producible: true, insight: "트러블 원인 미지 — 세안법 솔루션", data_evidence: "🟢 검색: '피부 트러블 원인' 월 5,400회" },
+        { rank: 4, thinking_direction: "forward", sf_type: "C", axes_used: ["WHO", "INTEREST"], WHO: "갓생러 루틴 관심자", INTEREST: "자기계발/갓생", conversion_score: 85, hook_copy: "갓생 루틴의 시작은 세안부터", ai_producible: true, insight: "자기계발 관심사와 스킨케어 루틴 연결", data_evidence: "🟡 검색: '갓생 루틴' 1월 +140%" },
+        { rank: 5, thinking_direction: "reverse", sf_type: "B", axes_used: ["PAIN", "NEED"], PAIN: "초미세 진동 12,000회가 일반 손세안 대비 모공 속 잔여물 90% 제거", NEED: "수치로 증명되는 세정력", conversion_score: 88, hook_copy: "12,000회 진동이 피부에서 뭘 하는지 보여줄게", ai_producible: true, insight: "제품 스펙(12,000회 초미세진동)에서 역으로 세정력 불안 소비자를 타겟", data_evidence: "🟢 검색: '진동클렌저 효과' 월 3,200회 | VOC: '진동 차이 체감'" },
+        { rank: 6, thinking_direction: "reverse", sf_type: "A", axes_used: ["WHO", "PAIN"], WHO: "IPX7 방수 필요한 욕실 사용자", PAIN: "클렌저 물 들어가서 고장남", conversion_score: 82, hook_copy: "욕실에서 쓰는 클렌저, 방수 안 되면 3개월 수명", ai_producible: true, insight: "IPX7 방수 스펙에서 출발 → 욕실 사용 중 고장 경험자 타겟", data_evidence: "🟡 검색: '방수 클렌저' 월 1,800회 | '클렌저 고장' 검색 존재" },
+        { rank: 7, thinking_direction: "reverse", sf_type: "C", axes_used: ["WHO", "INTEREST"], WHO: "부모님 선물 고민 자녀", INTEREST: "효도/가족", conversion_score: 80, hook_copy: "3만원으로 엄마 피부 바꿔드렸더니...", ai_producible: false, insight: "선물 카테고리와 뷰티 연결", data_evidence: "🟢 검색: '어버이날 선물 추천' 급증" },
+        { rank: 8, thinking_direction: "extended", sf_type: "A", axes_used: ["WHO", "SWITCH_FROM"], WHO: "다이소 클렌저 사용자", SWITCH_FROM: "다이소 3,000원 진동클렌저", conversion_score: 75, hook_copy: "다이소 클렌저 3개 사고 결국 이거 샀다", ai_producible: true, insight: "SWITCH_FROM 축: 저가 대안에서 전환하는 소비자 타겟", data_evidence: "🟡 검색: '다이소 클렌저 후기' 월 2,100회" },
+        { rank: 9, thinking_direction: "extended", sf_type: "C", axes_used: ["WHO", "TRIGGER"], WHO: "피부과 상담 후 스킨케어 시작하는 사람", TRIGGER: "피부과 방문 직후", conversion_score: 70, hook_copy: "피부과에서 세안법 바꾸라고 했는데 뭘로?", ai_producible: false, insight: "TRIGGER 축: 피부과 방문이라는 생애 이벤트가 구매 촉발", data_evidence: "🔵 신규 기회 — '피부과 후 관리' 검색 증가 추세" },
+        { rank: 10, thinking_direction: "extended", sf_type: "B", axes_used: ["PAIN", "BARRIER"], PAIN: "진동클렌저가 피부에 자극될까 걱정", BARRIER: "민감성 피부 자극 우려", conversion_score: 68, hook_copy: "민감성인데 진동클렌저 써도 되냐고요?", ai_producible: true, insight: "BARRIER 축: 구매를 막는 우려를 정면 돌파하는 콘텐츠", data_evidence: "🔵 신규 기회 — '진동클렌저 부작용' 검색 284회/월" },
       ]),
     }
     const defaultFallback = (p) => base([
-      { rank: 1, sf_type: "A", axes_used: ["WHO", "PAIN"], WHO: "일반 소비자", PAIN: `${p.strengths?.[0]?.tag || p.name} 없어서 불편`, conversion_score: 90, hook_copy: "이거 없이 어떻게 살았지?", ai_producible: true, insight: "기본 페인포인트 자극", data_evidence: "🟡 기본 폴백" },
-      { rank: 2, sf_type: "B", axes_used: ["PAIN", "NEED"], PAIN: "기존 제품이 불만족", NEED: `${p.strengths?.[1]?.tag || '편의성'}`, conversion_score: 85, hook_copy: "기존 거 vs 이거, 차이 실화?", ai_producible: false, insight: "기능 비교 증명", data_evidence: "🟡 기본 폴백" },
-      { rank: 3, sf_type: "C", axes_used: ["WHO", "WHEN", "WHERE"], WHO: "트렌드 민감 소비자", WHEN: "일상 속", WHERE: "집에서", conversion_score: 80, hook_copy: "요즘 핫한 거 발견했는데...", ai_producible: true, insight: "라이프스타일 배치", data_evidence: "🟡 기본 폴백" },
+      { rank: 1, thinking_direction: "forward", sf_type: "A", axes_used: ["WHO", "PAIN"], WHO: "일반 소비자", PAIN: `${p.strengths?.[0]?.tag || p.name} 없어서 불편`, conversion_score: 90, hook_copy: "이거 없이 어떻게 살았지?", ai_producible: true, insight: "기본 페인포인트 자극", data_evidence: "🟡 기본 폴백" },
+      { rank: 2, thinking_direction: "reverse", sf_type: "B", axes_used: ["PAIN", "NEED"], PAIN: "기존 제품이 불만족", NEED: `${p.strengths?.[1]?.tag || '편의성'}`, conversion_score: 85, hook_copy: "기존 거 vs 이거, 차이 실화?", ai_producible: false, insight: "기능 비교 증명", data_evidence: "🟡 기본 폴백" },
+      { rank: 3, thinking_direction: "extended", sf_type: "C", axes_used: ["WHO", "WHEN", "WHERE"], WHO: "트렌드 민감 소비자", WHEN: "일상 속", WHERE: "집에서", conversion_score: 80, hook_copy: "요즘 핫한 거 발견했는데...", ai_producible: true, insight: "라이프스타일 배치", data_evidence: "🟡 기본 폴백" },
     ])
     return fallbacks[product.id] || defaultFallback(product)
   }
@@ -971,6 +972,11 @@ export default function DiscoveryEngine() {
                           {sfType && (
                             <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 5, background: `${sfType.color}20`, color: sfType.color }}>{sfType.icon} {ctx.sf_type}</span>
                           )}
+                          {ctx.thinking_direction && (() => {
+                            const dirMap = { forward: { icon: '👤', label: '소비자 기점', color: C.green }, reverse: { icon: '🔧', label: '제품 기점', color: C.orange }, extended: { icon: '🔮', label: '확장 탐색', color: C.purple } }
+                            const dir = dirMap[ctx.thinking_direction] || dirMap.forward
+                            return <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 5, background: `${dir.color}20`, color: dir.color }}>{dir.icon} {dir.label}</span>
+                          })()}
                           {(ctx.axes_used || []).filter(dim => ctx[dim]).map(dim => (
                             <span key={dim} style={{ fontSize: 9, fontWeight: 600, padding: '2px 6px', borderRadius: 5, background: `${dimColor(dim)}15`, color: dimColor(dim) }}>{dim}: {ctx[dim]}</span>
                           ))}
