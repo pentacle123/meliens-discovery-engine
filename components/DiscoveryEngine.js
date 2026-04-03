@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { PRODUCTS, CONTEXT_DIMS, SEASON_DATA, SF_TEMPLATES, SF_TYPES, LISTENING_MIND_DATA } from '@/lib/data'
+import { PRODUCTS, CONTEXT_DIMS, SEASON_DATA, SF_TEMPLATES, SF_TYPES, LISTENING_MIND_DATA, CREATOR_DATA } from '@/lib/data'
 import DAiCreativeEngine from './DAiCreativeEngine'
 
 // ─── STYLE CONSTANTS ───
@@ -1132,7 +1132,151 @@ export default function DiscoveryEngine() {
                 📋 촬영 스토리보드 생성
               </button>
             </div>
+
+            {/* ─── 크리에이터 협업 방안 ─── */}
+            {renderCreatorCollaboration()}
           </>
+        )}
+      </div>
+    )
+  }
+
+  // ─── 크리에이터 협업 방안 렌더링 ───
+  function renderCreatorCollaboration() {
+    if (!selectedProduct || !CREATOR_DATA) return null
+
+    const productName = selectedProduct.name
+    const ctx = matchedContexts?.[selectedContextIdx]
+
+    // 제품명에 매칭되는 카테고리 필터링 (group_purchase 제외)
+    const matchedCategories = Object.entries(CREATOR_DATA.categories)
+      .filter(([key, cat]) => key !== 'group_purchase' && cat.relevantProducts.some(rp => productName.includes(rp) || rp.includes(productName.split(' ')[0])))
+    const groupPurchase = CREATOR_DATA.categories.group_purchase
+
+    // 매칭된 카테고리가 없으면 전체 표시 (group_purchase 제외)
+    const categoriesToShow = matchedCategories.length > 0
+      ? matchedCategories
+      : Object.entries(CREATOR_DATA.categories).filter(([key]) => key !== 'group_purchase')
+
+    // 모든 크리에이터를 티어별로 그룹핑
+    const allCreators = categoriesToShow.flatMap(([, cat]) => cat.creators.map(c => ({ ...c, category: cat.name })))
+    const byTier = { MEGA: [], MID: [], MICRO: [] }
+    allCreators.forEach(c => { if (byTier[c.tier]) byTier[c.tier].push(c) })
+
+    // 협업 맥락 텍스트 생성
+    const collabContext = ctx
+      ? `"${ctx.hook_copy || ctx.insight || ''}" — ${(ctx.axes_used || []).filter(d => ctx[d]).map(d => ctx[d]).join(' × ')} 타겟`
+      : `${productName} 숏폼 콘텐츠 협업`
+
+    const collabDirection = ctx
+      ? `${ctx.WHO || '타겟 소비자'}의 "${ctx.PAIN || '일상 불편'}" 문제를 크리에이터가 직접 체험 → 솔직한 사용기로 공감 유발`
+      : `${productName}의 핵심 강점을 크리에이터의 일상에 자연스럽게 배치하여 발견형 구매 유도`
+
+    // 크리에이터 유형 태그
+    const creatorTypeTags = ctx?.INTEREST
+      ? [`${ctx.INTEREST} 크리에이터`, '일상 브이로거', '리뷰 전문']
+      : ['생활 리뷰어', '일상 브이로거', '가성비 큐레이터']
+
+    const tagColors = [C.pink, C.green, C.orange]
+
+    function CreatorCard({ creator, tierColor }) {
+      const tierInfo = CREATOR_DATA.tiers[creator.tier]
+      return (
+        <div style={{
+          background: C.surface, borderLeft: `3px solid ${tierColor}`, borderRadius: 10,
+          padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 6,
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: tierColor, flexShrink: 0 }} />
+              <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{creator.name}</span>
+              {tierInfo?.recommended && (
+                <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 4, background: `${C.green}22`, color: C.green, border: `1px solid ${C.green}33` }}>추천</span>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <span style={{ fontSize: 10, color: C.textDim }}>{creator.platform}</span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: tierColor }}>{creator.subs}</span>
+            </div>
+          </div>
+          <p style={{ fontSize: 11, color: C.textMuted, margin: 0, lineHeight: 1.4 }}>{creator.desc}</p>
+          <p style={{ fontSize: 10, color: C.accent, margin: 0, lineHeight: 1.4 }}>{creator.matchReason}</p>
+        </div>
+      )
+    }
+
+    return (
+      <div style={{ marginTop: 32 }}>
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+            <span style={{ fontSize: 18, color: C.accent }}>🤝</span>
+            <h2 style={{ fontSize: 20, fontWeight: 700, color: C.text, margin: 0, letterSpacing: '-0.02em' }}>크리에이터 협업 방안</h2>
+          </div>
+          <p style={{ fontSize: 13, color: C.textMuted, margin: 0, marginLeft: 28 }}>발견된 기회에서 크리에이터와 협업하면 숏폼의 도달과 신뢰를 동시에 높일 수 있습니다</p>
+        </div>
+
+        {/* 협업 맥락 카드 */}
+        <div style={{
+          background: C.card, borderLeft: `3px solid ${C.accent}`, borderRadius: 12,
+          padding: 18, marginBottom: 20,
+        }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: C.accent, letterSpacing: '0.06em', marginBottom: 8 }}>협업 콘텐츠 방향</div>
+          <p style={{ fontSize: 13, color: C.text, fontWeight: 600, margin: '0 0 8px 0', lineHeight: 1.5 }}>{collabDirection}</p>
+          <div style={{ fontSize: 12, color: C.textMuted, fontStyle: 'italic', marginBottom: 10 }}>{collabContext}</div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {creatorTypeTags.map((tag, i) => (
+              <span key={i} style={{
+                fontSize: 10, fontWeight: 600, padding: '3px 10px', borderRadius: 12,
+                background: `${tagColors[i % tagColors.length]}18`, color: tagColors[i % tagColors.length],
+                border: `1px solid ${tagColors[i % tagColors.length]}30`,
+              }}>{tag}</span>
+            ))}
+          </div>
+        </div>
+
+        {/* 티어별 크리에이터 추천 */}
+        {['MEGA', 'MID', 'MICRO'].map(tierKey => {
+          const creators = byTier[tierKey]
+          if (!creators.length) return null
+          const tierInfo = CREATOR_DATA.tiers[tierKey]
+          return (
+            <div key={tierKey} style={{ marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <div style={{ width: 10, height: 10, borderRadius: '50%', background: tierInfo.color }} />
+                <span style={{ fontSize: 12, fontWeight: 700, color: tierInfo.color }}>{tierInfo.label}</span>
+                {tierInfo.recommended && (
+                  <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: `${C.green}18`, color: C.green }}>비용 효율적, 전환율 높은 충성 팬층</span>
+                )}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {creators.map((c, i) => <CreatorCard key={i} creator={c} tierColor={tierInfo.color} />)}
+              </div>
+            </div>
+          )
+        })}
+
+        {/* 공동구매 크리에이터 */}
+        {groupPurchase && (
+          <div style={{ marginTop: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              <span style={{ fontSize: 16 }}>🛒</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: C.pink }}>공동구매 크리에이터</span>
+            </div>
+            <div style={{
+              background: `${C.pink}08`, border: `1px solid ${C.pink}22`, borderRadius: 12,
+              padding: 16, marginBottom: 12,
+            }}>
+              <div style={{ fontSize: 11, color: C.pink, fontWeight: 600, marginBottom: 6 }}>공동구매 기획 방향</div>
+              <p style={{ fontSize: 12, color: C.textMuted, margin: 0, lineHeight: 1.6 }}>
+                멜리언스 특가 + 한정수량 FOMO + 크리에이터 전용 할인코드 조합.
+                시즌 이벤트(설/추석/블프)와 연계하면 전환율 극대화.
+                번들 구성(예: 거치대+카드지갑+링홀더 세트) 시 객단가 상승 효과.
+              </p>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {groupPurchase.creators.map((c, i) => <CreatorCard key={i} creator={c} tierColor={C.pink} />)}
+            </div>
+          </div>
         )}
       </div>
     )
