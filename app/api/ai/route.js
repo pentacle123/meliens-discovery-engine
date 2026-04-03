@@ -296,6 +296,13 @@ ${sfTypeFilter ? `사용자가 유형 "${sfTypeFilter}"을 선택했습니다. 9
    - "extended": 확장 축 활용 (STEP 3에서 생성한 아이디어)
 10. Reverse 아이디어는 반드시 제품의 구체적 스펙/수치에서 출발하세요. "이 기능이 있으니까" → "이 기능이 가장 절실한 사람은 누구?" 순서로 사고.
 
+═══ 크리에이터 협업 방향 (필수) ═══
+각 아이디어마다 해당 맥락(WHO/PAIN 등)에 최적화된 크리에이터 협업 방향을 함께 생성하세요.
+- 맥락 조합에서 자연스럽게 연결되는 크리에이터 유형과 콘텐츠 형식을 추천
+- 예: WHO "30대 직장인 남성 드라이버" + PAIN "거치대 흔들림" → "차량 튜닝/용품 크리에이터와 흔들림 비교 테스트 콘텐츠"
+- 예: WHO "니트 좋아하는 30대 여성" + PAIN "보풀" → "생활용품 리뷰 크리에이터와 Before/After 리뷰" + "살림살이 공동구매 크리에이터와 시즌 공구"
+- 공동구매가 적합한 경우 group_purchase_idea도 포함하세요
+
 반드시 아래 JSON 형식으로만 응답하세요. 다른 텍스트 없이 JSON만:
 [
   {
@@ -319,7 +326,13 @@ ${sfTypeFilter ? `사용자가 유형 "${sfTypeFilter}"을 선택했습니다. 9
     "hook_copy": "숏폼 첫 3초 후킹 카피 한 줄 (예: '이거 안 쓰면 세안 반만 한 거임')",
     "ai_producible": true,
     "insight": "이 조합이 효과적인 이유",
-    "data_evidence": "🟢 검색: '키워드' 월 N회, 의도 T% | VOC: '관련 후기 요약'"
+    "data_evidence": "🟢 검색: '키워드' 월 N회, 의도 T% | VOC: '관련 후기 요약'",
+    "creator_collab": {
+      "title": "맥락 × 크리에이터 유형 (예: '보풀 스트레스 해소 × 생활용품 리뷰어')",
+      "direction": "구체적 협업 방향 (예: '니트/코트 보풀 Before/After를 크리에이터가 직접 시연 → 솔직 리뷰')",
+      "content_idea": "콘텐츠 형식 (예: 'Before/After 비교 리뷰')",
+      "group_purchase_idea": "공동구매 아이디어 또는 null (예: '겨울 시즌 보풀제거기 공동구매 + 전용 할인코드')"
+    }
   }
 ]
 
@@ -331,7 +344,10 @@ ${sfTypeFilter ? `사용자가 유형 "${sfTypeFilter}"을 선택했습니다. 9
 - 확장 축(DEVICE/TRIGGER/BARRIER/SWITCH_FROM/VEHICLE_ENV)도 axes_used에 포함 가능합니다.
 - hook_copy는 반드시 포함하세요. 실제 숏폼 자막으로 바로 쓸 수 있는 한 줄 카피여야 합니다.
 - ai_producible은 반드시 boolean(true/false)이어야 합니다.
-- data_evidence는 반드시 🟢/🟡/🔵 이모지로 시작하세요.`
+- data_evidence는 반드시 🟢/🟡/🔵 이모지로 시작하세요.
+- creator_collab은 반드시 포함하세요. 각 아이디어의 WHO/PAIN 맥락에 맞는 크리에이터 협업 방향입니다.
+- creator_collab.title은 "맥락 키워드 × 크리에이터 유형" 형식으로 작성하세요.
+- creator_collab.group_purchase_idea는 공동구매가 적합하지 않으면 null로 설정하세요.`
     } else if (type === 'generate_shortform') {
       // 활성 축만 프롬프트에 포함
       const axisLabels = { WHO: '타겟', WHEN: '시간/시즌', WHERE: '장소', PAIN: '페인포인트', NEED: '니즈', INTEREST: '관심사' }
