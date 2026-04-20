@@ -67,6 +67,11 @@ function EmptyState({ icon, message, action, onAction }) {
   )
 }
 
+// ─── MAINTENANCE MODE ───
+// true로 설정하면 모든 메뉴/버튼 클릭 비활성화 (메인 화면은 그대로 보임)
+// 복구: false로 변경 후 커밋/푸시
+const MAINTENANCE_MODE = true
+
 // ─── MAIN ENGINE COMPONENT ───
 
 export default function DiscoveryEngine() {
@@ -734,12 +739,12 @@ export default function DiscoveryEngine() {
               const cc = catColor(p.category)
               const isSelected = selectedProduct?.id === p.id
               return (
-                <div key={p.id} onClick={() => selectProduct(p)} style={{
+                <div key={p.id} onClick={() => !MAINTENANCE_MODE && selectProduct(p)} style={{
                   background: C.card, border: `2px solid ${isSelected ? cc : C.border}`,
-                  borderRadius: 18, padding: 24, cursor: 'pointer', transition: 'all 0.3s ease', position: 'relative',
+                  borderRadius: 18, padding: 24, cursor: MAINTENANCE_MODE ? 'default' : 'pointer', transition: 'all 0.3s ease', position: 'relative',
                 }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = cc; e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = `0 8px 24px ${cc}22` }}
-                  onMouseLeave={e => { if (!isSelected) e.currentTarget.style.borderColor = C.border; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none' }}
+                  onMouseEnter={e => { if (MAINTENANCE_MODE) return; e.currentTarget.style.borderColor = cc; e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = `0 8px 24px ${cc}22` }}
+                  onMouseLeave={e => { if (MAINTENANCE_MODE) return; if (!isSelected) e.currentTarget.style.borderColor = C.border; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none' }}
                 >
                   {isSelected && <div style={{ position: 'absolute', top: 12, right: 12, width: 22, height: 22, borderRadius: '50%', background: cc, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#fff', fontWeight: 700 }}>✓</div>}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
@@ -773,13 +778,13 @@ export default function DiscoveryEngine() {
               const cc = catColor(p.category)
               const isSelected = selectedProduct?.id === p.id
               return (
-                <div key={p.id} onClick={() => selectProduct(p)} style={{
+                <div key={p.id} onClick={() => !MAINTENANCE_MODE && selectProduct(p)} style={{
                   background: C.card, border: `1.5px solid ${isSelected ? cc : C.border}`,
-                  borderRadius: 14, padding: 16, cursor: 'pointer', transition: 'all 0.25s ease',
+                  borderRadius: 14, padding: 16, cursor: MAINTENANCE_MODE ? 'default' : 'pointer', transition: 'all 0.25s ease',
                   display: 'flex', alignItems: 'center', gap: 12,
                 }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = cc; e.currentTarget.style.transform = 'translateY(-2px)' }}
-                  onMouseLeave={e => { if (!isSelected) e.currentTarget.style.borderColor = C.border; e.currentTarget.style.transform = 'translateY(0)' }}
+                  onMouseEnter={e => { if (MAINTENANCE_MODE) return; e.currentTarget.style.borderColor = cc; e.currentTarget.style.transform = 'translateY(-2px)' }}
+                  onMouseLeave={e => { if (MAINTENANCE_MODE) return; if (!isSelected) e.currentTarget.style.borderColor = C.border; e.currentTarget.style.transform = 'translateY(0)' }}
                 >
                   <span style={{ fontSize: 28 }}>{p.emoji}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -1370,9 +1375,9 @@ export default function DiscoveryEngine() {
               if (!p) return null
               const cc = catColor(p.category)
               return (
-                <div key={pid} onClick={() => selectProduct(p)} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, cursor: 'pointer', transition: 'all 0.2s ease' }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = cc }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = C.border }}
+                <div key={pid} onClick={() => !MAINTENANCE_MODE && selectProduct(p)} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, cursor: MAINTENANCE_MODE ? 'default' : 'pointer', transition: 'all 0.2s ease' }}
+                  onMouseEnter={e => { if (MAINTENANCE_MODE) return; e.currentTarget.style.borderColor = cc }}
+                  onMouseLeave={e => { if (MAINTENANCE_MODE) return; e.currentTarget.style.borderColor = C.border }}
                 >
                   <div style={{ fontSize: 28, marginBottom: 8 }}>{p.emoji}</div>
                   <h4 style={{ fontSize: 14, fontWeight: 700, color: C.text, margin: '0 0 6px 0' }}>{p.name}</h4>
@@ -1412,7 +1417,7 @@ export default function DiscoveryEngine() {
         padding: '14px 24px',
       }}>
         <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }} onClick={() => setActiveTab(0)}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: MAINTENANCE_MODE ? 'default' : 'pointer' }} onClick={() => !MAINTENANCE_MODE && setActiveTab(0)}>
             <div style={{
               width: 34, height: 34, borderRadius: 9,
               background: `linear-gradient(135deg, ${C.accent}, ${C.purple})`,
@@ -1452,11 +1457,11 @@ export default function DiscoveryEngine() {
               const isCompleted = completedSteps.has(i) && !isActive
               return (
                 <div key={i} style={{ display: 'flex', alignItems: 'center' }}>
-                  <button onClick={() => setActiveTab(i)} style={{
+                  <button onClick={() => !MAINTENANCE_MODE && setActiveTab(i)} disabled={MAINTENANCE_MODE} style={{
                     padding: '14px 20px', background: 'transparent',
                     border: 'none', borderBottom: `2px solid ${isActive ? C.accent : 'transparent'}`,
-                    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10,
-                    transition: 'all 0.2s ease',
+                    cursor: MAINTENANCE_MODE ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 10,
+                    transition: 'all 0.2s ease', opacity: MAINTENANCE_MODE && !isActive ? 0.5 : 1,
                   }}>
                     {/* Step circle */}
                     <span style={{
@@ -1492,11 +1497,11 @@ export default function DiscoveryEngine() {
 
           {/* 별도 대시보드 탭들 (스텝 번호 없음) */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 16 }}>
-            <button onClick={() => setActiveTab('insight')} style={{
+            <button onClick={() => !MAINTENANCE_MODE && setActiveTab('insight')} disabled={MAINTENANCE_MODE} style={{
               padding: '14px 16px', background: 'transparent',
               border: 'none', borderBottom: `2px solid ${activeTab === 'insight' ? C.purple : 'transparent'}`,
-              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
-              transition: 'all 0.2s ease',
+              cursor: MAINTENANCE_MODE ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 8,
+              transition: 'all 0.2s ease', opacity: MAINTENANCE_MODE ? 0.5 : 1,
             }}>
               <span style={{
                 fontSize: 16, color: activeTab === 'insight' ? C.purple : C.textDim,
@@ -1510,11 +1515,11 @@ export default function DiscoveryEngine() {
                 AI 성과 Insight
               </span>
             </button>
-            <button onClick={() => setActiveTab('dai-creative')} style={{
+            <button onClick={() => !MAINTENANCE_MODE && setActiveTab('dai-creative')} disabled={MAINTENANCE_MODE} style={{
               padding: '14px 16px', background: 'transparent',
               border: 'none', borderBottom: `2px solid ${activeTab === 'dai-creative' ? '#f59e0b' : 'transparent'}`,
-              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
-              transition: 'all 0.2s ease',
+              cursor: MAINTENANCE_MODE ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 8,
+              transition: 'all 0.2s ease', opacity: MAINTENANCE_MODE ? 0.5 : 1,
             }}>
               <span style={{
                 fontSize: 16, color: activeTab === 'dai-creative' ? '#f59e0b' : C.textDim,
